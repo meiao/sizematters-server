@@ -88,12 +88,21 @@ impl ClientActor {
 
     fn client_msg(&mut self, msg: ClientRequestMessage, ctx: &mut <Self as Actor>::Context) {
         match msg {
+            ClientRequestMessage::Register { .. } => self.register(ctx),
             ClientRequestMessage::SetName { name } => self.set_name(name, ctx),
             ClientRequestMessage::SetAvatar { avatar } => self.set_avatar(avatar, ctx),
             ClientRequestMessage::JoinRoom { .. } => self.join_room(msg, ctx),
             ClientRequestMessage::LeaveRoom { .. } => self.leave_room(msg, ctx),
             ClientRequestMessage::Vote { .. } => self.vote(msg, ctx),
         }
+    }
+
+    fn register(&self, ctx: &mut <Self as Actor>::Context) {
+        let msg = UserInfoUpdate::Register {
+            user_id: self.user_id.clone(),
+            recipient: ctx.address().recipient(),
+        };
+        self.user_manager.do_send(msg);
     }
 
     fn set_name(&mut self, name: String, ctx: &mut <Self as Actor>::Context) {
@@ -113,13 +122,6 @@ impl ClientActor {
         };
         self.user_manager.do_send(msg);
     }
-
-    // fn info_updated(&mut self, res: UserInfoResponse, ctx: &mut <Self as Actor>::Context) {
-    //     match res.user_data.iter().next() {
-    //         None => println!("Info received contained no data."),
-    //         Some(user_data) => self.data = user_data.clone(),
-    //     }
-    // }
 
     fn join_room(&mut self, msg: ClientRequestMessage, ctx: &mut <Self as Actor>::Context) {
         if let ClientRequestMessage::JoinRoom {

@@ -8,6 +8,7 @@ use std::collections::HashMap;
 #[serde(tag = "type", content = "data")]
 #[rtype(result = "()")]
 pub enum ClientRequestMessage {
+    Register,
     SetName { name: String },
     SetAvatar { avatar: String },
     JoinRoom { room_name: String, password: String },
