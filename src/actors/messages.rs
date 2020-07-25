@@ -35,6 +35,9 @@ pub enum RoomMessage {
         user_id: String,
         size: u64,
     },
+    UserUpdated {
+        user: UserData,
+    },
 }
 
 /// Messages sent to the client
@@ -75,25 +78,5 @@ pub enum ClientResponseMessage {
     },
     Error {
         msg: String,
-    },
-}
-
-/// messages sent to a NameActor that do not require a response
-#[derive(Message)]
-#[rtype(result = "()")]
-pub enum UserInfoUpdate {
-    SetName {
-        user_id: String,
-        name: String,
-        recipient: Recipient<ClientResponseMessage>,
-    },
-    SetAvatar {
-        user_id: String,
-        gravatar_id: String,
-        recipient: Recipient<ClientResponseMessage>,
-    },
-    Register {
-        user_id: String,
-        recipient: Recipient<ClientResponseMessage>,
     },
 }

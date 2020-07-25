@@ -2,7 +2,6 @@ use crate::actors::messages::{ClientResponseMessage, RoomMessage};
 use crate::data::UserData;
 use actix::prelude::*;
 use actix::Actor;
-use std::borrow::Borrow;
 
 /// Room manager. This is an actor that knows about all the created rooms and
 pub struct RoomManagerActor {}

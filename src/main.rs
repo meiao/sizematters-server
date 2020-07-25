@@ -5,7 +5,6 @@ use actix::{Actor, Addr};
 use actix_web::{middleware, web, App, Error, HttpRequest, HttpResponse, HttpServer};
 use actix_web_actors::ws;
 
-use crate::actors::UserManagerActor;
 use actors::ClientActor;
 use actors::RoomManagerActor;
 
@@ -14,16 +13,10 @@ async fn ws_index(
     r: HttpRequest,
     stream: web::Payload,
     room_manager: web::Data<Addr<RoomManagerActor>>,
-    user_manager: web::Data<Addr<UserManagerActor>>,
 ) -> Result<HttpResponse, Error> {
     println!("{:?}", r);
     let room_manager_addr = room_manager.get_ref().clone();
-    let user_manager_addr = user_manager.get_ref().clone();
-    let res = ws::start(
-        ClientActor::new(room_manager_addr, user_manager_addr),
-        &r,
-        stream,
-    );
+    let res = ws::start(ClientActor::new(room_manager_addr), &r, stream);
     println!("{:?}", res);
     res
 }
@@ -34,12 +27,10 @@ async fn main() -> std::io::Result<()> {
     env_logger::init();
 
     let room_manager = RoomManagerActor::new().start();
-    let user_manager = UserManagerActor::default().start();
 
     HttpServer::new(move || {
         App::new()
             .data(room_manager.clone())
-            .data(user_manager.clone())
             // enable logger
             .wrap(middleware::Logger::default())
             // websocket route

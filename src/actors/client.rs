@@ -1,14 +1,13 @@
 use actix::prelude::*;
 use actix_web_actors::ws;
 use serde_json::Error;
-use std::collections::HashSet;
 use std::time::Duration;
 use std::time::Instant;
 use uuid::Uuid;
 
 use super::RoomManagerActor;
-use crate::actors::messages::{ClientRequestMessage, ClientResponseMessage, UserInfoUpdate};
-use crate::actors::user::UserManagerActor;
+use crate::actors::messages::{ClientRequestMessage, ClientResponseMessage, RoomMessage};
+use crate::data::UserData;
 
 /// How often heartbeat pings are sent
 const HEARTBEAT_INTERVAL: Duration = Duration::from_secs(5);
@@ -21,10 +20,19 @@ pub struct ClientActor {
     /// Client must send ping at least once per 10 seconds (CLIENT_TIMEOUT),
     /// otherwise we drop connection.
     last_heartbeat: Instant,
-    rooms: HashSet<String>,
-    user_id: String,
+    user: UserData,
     room_manager: Addr<RoomManagerActor>,
-    user_manager: Addr<UserManagerActor>,
+}
+
+impl ClientActor {
+    pub fn new(room_manager: Addr<RoomManagerActor>) -> Self {
+        let user_id = Uuid::new_v4().simple().to_string();
+        Self {
+            last_heartbeat: Instant::now(),
+            user: UserData::new(user_id),
+            room_manager,
+        }
+    }
 }
 
 impl Actor for ClientActor {
@@ -33,10 +41,6 @@ impl Actor for ClientActor {
     /// Method is called on actor start. We start the heartbeat process here.
     fn started(&mut self, ctx: &mut Self::Context) {
         self.heartbeat(ctx);
-        let user_id = self.user_id.clone();
-        let recipient = ctx.address().recipient();
-        self.user_manager
-            .do_send(UserInfoUpdate::Register { user_id, recipient })
     }
 }
 
@@ -64,16 +68,6 @@ impl StreamHandler<Result<ws::Message, ws::ProtocolError>> for ClientActor {
 }
 
 impl ClientActor {
-    pub fn new(room_manager: Addr<RoomManagerActor>, user_manager: Addr<UserManagerActor>) -> Self {
-        Self {
-            last_heartbeat: Instant::now(),
-            rooms: HashSet::new(),
-            user_id: Uuid::new_v4().simple().to_string(),
-            room_manager,
-            user_manager,
-        }
-    }
-
     fn text(&mut self, msg: String, ctx: &mut <Self as Actor>::Context) {
         println!("WS: {:?}", msg);
         let client_msg: Result<ClientRequestMessage, Error> = serde_json::from_str(msg.as_str());
@@ -88,47 +82,55 @@ impl ClientActor {
 
     fn client_msg(&mut self, msg: ClientRequestMessage, ctx: &mut <Self as Actor>::Context) {
         match msg {
-            ClientRequestMessage::Register { .. } => self.register(ctx),
+            ClientRequestMessage::Register => self.register(ctx),
             ClientRequestMessage::SetName { name } => self.set_name(name, ctx),
             ClientRequestMessage::SetAvatar { avatar } => self.set_avatar(avatar, ctx),
-            ClientRequestMessage::JoinRoom { .. } => self.join_room(msg, ctx),
+            ClientRequestMessage::JoinRoom {
+                room_name,
+                password,
+            } => self.join_room(room_name, password, ctx),
             ClientRequestMessage::LeaveRoom { .. } => self.leave_room(msg, ctx),
             ClientRequestMessage::Vote { .. } => self.vote(msg, ctx),
         }
     }
 
-    fn register(&self, ctx: &mut <Self as Actor>::Context) {
-        let msg = UserInfoUpdate::Register {
-            user_id: self.user_id.clone(),
-            recipient: ctx.address().recipient(),
-        };
-        self.user_manager.do_send(msg);
+    fn register(&mut self, ctx: &mut <Self as Actor>::Context) {
+        self.notify_data_updated(ctx);
     }
 
     fn set_name(&mut self, name: String, ctx: &mut <Self as Actor>::Context) {
-        let msg = UserInfoUpdate::SetName {
-            user_id: self.user_id.clone(),
-            name,
-            recipient: ctx.address().recipient(),
-        };
-        self.user_manager.do_send(msg);
+        self.user.name = name;
+        self.notify_data_updated(ctx);
     }
 
-    fn set_avatar(&mut self, gravatar_id: String, ctx: &mut <Self as Actor>::Context) {
-        let msg = UserInfoUpdate::SetAvatar {
-            user_id: self.user_id.clone(),
-            gravatar_id,
-            recipient: ctx.address().recipient(),
-        };
-        self.user_manager.do_send(msg);
+    fn set_avatar(&mut self, avatar: String, ctx: &mut <Self as Actor>::Context) {
+        self.user.set_avatar(&avatar);
+        self.notify_data_updated(ctx);
     }
 
-    fn join_room(&mut self, msg: ClientRequestMessage, ctx: &mut <Self as Actor>::Context) {
-        if let ClientRequestMessage::JoinRoom {
+    fn notify_data_updated(&mut self, ctx: &mut <Self as Actor>::Context) {
+        let user = self.user.clone();
+        self::Handler::handle(self, ClientResponseMessage::YourData { user }, ctx);
+
+        let user = self.user.clone();
+        self.room_manager.do_send(RoomMessage::UserUpdated { user });
+    }
+
+    fn join_room(
+        &mut self,
+        room_name: String,
+        password: String,
+        ctx: &mut <Self as Actor>::Context,
+    ) {
+        let user = self.user.clone();
+        let recipient = ctx.address().recipient();
+        let msg = RoomMessage::JoinRoom {
             room_name,
             password,
-        } = msg
-        {}
+            user,
+            recipient,
+        };
+        self.room_manager.do_send(msg);
     }
 
     fn leave_room(&mut self, msg: ClientRequestMessage, ctx: &mut <Self as Actor>::Context) {
@@ -173,7 +175,7 @@ impl Handler<ClientResponseMessage> for ClientActor {
         let msg = serde_json::to_string(&server_msg);
         match msg {
             Ok(msg) => ctx.text(msg),
-            Err(_) => println!("Error sending data back to user: {}", &self.user_id),
+            Err(_) => println!("Error sending data back to user: {}", &self.user.user_id),
         }
     }
 }
