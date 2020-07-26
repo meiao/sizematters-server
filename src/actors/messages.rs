@@ -1,6 +1,7 @@
 use crate::data::UserData;
 use actix::prelude::*;
 use serde::{Deserialize, Serialize};
+use std::clone::Clone;
 use std::collections::HashMap;
 
 /// Messages sent from the client to the server.
@@ -17,7 +18,7 @@ pub enum ClientRequestMessage {
 }
 
 /// messages sent to a RoomActor
-#[derive(Message)]
+#[derive(Message, Clone)]
 #[rtype(result = "()")]
 pub enum RoomMessage {
     JoinRoom {
@@ -41,7 +42,7 @@ pub enum RoomMessage {
 }
 
 /// Messages sent to the client
-#[derive(Message, Serialize)]
+#[derive(Message, Serialize, Clone)]
 #[serde(tag = "type", content = "data")]
 #[rtype(result = "()")]
 pub enum ClientResponseMessage {
@@ -60,7 +61,7 @@ pub enum ClientResponseMessage {
     NewVote {
         room_name: String,
     },
-    UsersInRoom {
+    RoomJoined {
         room_name: String,
         users: Vec<UserData>,
     },

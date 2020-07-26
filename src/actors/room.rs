@@ -1,3 +1,5 @@
-mod manager;
+mod room_actor;
+mod room_manager;
 
-pub use manager::RoomManagerActor;
+pub use room_actor::RoomActor;
+pub use room_manager::RoomManagerActor;
