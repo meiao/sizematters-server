@@ -44,6 +44,7 @@ impl Handler<RoomMessage> for RoomManagerActor {
                 );
             }
             RoomMessage::UserUpdated { user } => self.user_updated(user),
+            RoomMessage::LeaveRoom { user_id, room_name } => self.leave_room(user_id, room_name),
             _ => {}
         };
     }
@@ -76,6 +77,26 @@ impl RoomManagerActor {
                 let room = self.rooms.get(&room_name).unwrap();
                 room.do_send(msg);
             }
+        }
+    }
+
+    fn leave_room(&mut self, user_id: String, room_name: String) {
+        match self.user_room_map.get_mut(&user_id) {
+            None => println!(
+                "{} tried to exit {} which they is not into.",
+                &user_id, &room_name
+            ),
+            Some(rooms) => {
+                let bool = rooms.remove(&room_name);
+            }
+        };
+
+        match self.rooms.get(&room_name) {
+            None => println!(
+                "{} tried to exit {} which does not exist",
+                &user_id, &room_name
+            ),
+            Some(room) => room.do_send(RoomMessage::LeaveRoom { user_id, room_name }),
         }
     }
 

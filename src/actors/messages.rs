@@ -54,6 +54,10 @@ pub enum ClientResponseMessage {
         room_name: String,
         user_id: String,
     },
+    VotesCast {
+        room_name: String,
+        votes_cast: u64,
+    },
     VoteResults {
         room_name: String,
         votes: HashMap<String, u64>,
@@ -64,6 +68,7 @@ pub enum ClientResponseMessage {
     RoomJoined {
         room_name: String,
         users: Vec<UserData>,
+        votes_cast: u64,
     },
     AlreadyInRoom {
         room_name: String,

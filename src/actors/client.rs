@@ -89,7 +89,7 @@ impl ClientActor {
                 room_name,
                 password,
             } => self.join_room(room_name, password, ctx),
-            ClientRequestMessage::LeaveRoom { .. } => self.leave_room(msg, ctx),
+            ClientRequestMessage::LeaveRoom { room_name } => self.leave_room(room_name, ctx),
             ClientRequestMessage::Vote { .. } => self.vote(msg, ctx),
         }
     }
@@ -133,8 +133,12 @@ impl ClientActor {
         self.room_manager.do_send(msg);
     }
 
-    fn leave_room(&mut self, msg: ClientRequestMessage, ctx: &mut <Self as Actor>::Context) {
-        if let ClientRequestMessage::LeaveRoom { room_name } = msg {}
+    fn leave_room(&mut self, room_name: String, ctx: &mut <Self as Actor>::Context) {
+        let msg = RoomMessage::LeaveRoom {
+            user_id: self.user.user_id.clone(),
+            room_name,
+        };
+        self.room_manager.do_send(msg);
     }
 
     fn vote(&mut self, msg: ClientRequestMessage, ctx: &mut <Self as Actor>::Context) {

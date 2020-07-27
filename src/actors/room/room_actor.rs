@@ -39,7 +39,7 @@ impl Handler<RoomMessage> for RoomActor {
                 recipient,
                 ..
             } => self.join_room(password, user, recipient),
-            RoomMessage::LeaveRoom { .. } => {}
+            RoomMessage::LeaveRoom { user_id, .. } => self.leave_room(user_id),
             RoomMessage::Vote { .. } => {}
             RoomMessage::UserUpdated { user } => self.user_updated(user),
         }
@@ -78,9 +78,23 @@ impl RoomActor {
                 .map(|conn_info| conn_info.user.clone())
                 .collect();
             let room_name = self.name.clone();
-            let join_msg = ClientResponseMessage::RoomJoined { room_name, users };
+            let votes_cast = 0;
+            let join_msg = ClientResponseMessage::RoomJoined {
+                room_name,
+                users,
+                votes_cast,
+            };
             joiner.do_send(join_msg);
         };
+    }
+
+    fn leave_room(&mut self, user_id: String) {
+        let msg = ClientResponseMessage::UserLeft {
+            user_id: user_id.clone(),
+            room_name: self.name.clone(),
+        };
+        self.notify_users(msg);
+        self.user_map.remove(&user_id);
     }
 
     fn user_updated(&mut self, user: UserData) {
