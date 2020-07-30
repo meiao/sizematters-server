@@ -59,6 +59,7 @@ impl StreamHandler<Result<ws::Message, ws::ProtocolError>> for ClientActor {
             Ok(ws::Message::Text(text)) => self.text(text, ctx),
             Ok(ws::Message::Binary(bin)) => {} // ignore binary
             Ok(ws::Message::Close(reason)) => {
+                self.user_left();
                 ctx.close(reason);
                 ctx.stop();
             }
@@ -90,7 +91,7 @@ impl ClientActor {
                 password,
             } => self.join_room(room_name, password, ctx),
             ClientRequestMessage::LeaveRoom { room_name } => self.leave_room(room_name, ctx),
-            ClientRequestMessage::Vote { .. } => self.vote(msg, ctx),
+            ClientRequestMessage::Vote { room_name, size } => self.vote(room_name, size, ctx),
         }
     }
 
@@ -141,13 +142,23 @@ impl ClientActor {
         self.room_manager.do_send(msg);
     }
 
-    fn vote(&mut self, msg: ClientRequestMessage, ctx: &mut <Self as Actor>::Context) {
-        if let ClientRequestMessage::Vote { room_name, size } = msg {}
+    fn vote(&mut self, room_name: String, size: u64, ctx: &mut <Self as Actor>::Context) {
+        let msg = RoomMessage::Vote {
+            room_name,
+            user_id: self.user.user_id.clone(),
+            size,
+        };
+        self.room_manager.do_send(msg);
     }
 
-    /// helper method that sends ping to client every second.
-    ///
-    /// also this method checks heartbeats from client
+    fn user_left(&mut self) {
+        let msg = RoomMessage::UserLeft {
+            user_id: self.user.user_id.clone(),
+        };
+        self.room_manager.do_send(msg);
+    }
+
+    /// helper method that sends ping to client on a fixed interval
     fn heartbeat(&self, ctx: &mut <Self as Actor>::Context) {
         ctx.run_interval(HEARTBEAT_INTERVAL, |act, ctx| {
             // check client heartbeats
@@ -155,10 +166,8 @@ impl ClientActor {
                 // heartbeat timed out
                 println!("Websocket Client heartbeat failed, disconnecting!");
 
-                // stop actor
+                act.user_left();
                 ctx.stop();
-
-                // don't try to send a ping
                 return;
             }
 
@@ -167,7 +176,6 @@ impl ClientActor {
     }
 }
 
-///
 impl Handler<ClientResponseMessage> for ClientActor {
     type Result = ();
 
@@ -179,7 +187,10 @@ impl Handler<ClientResponseMessage> for ClientActor {
         let msg = serde_json::to_string(&server_msg);
         match msg {
             Ok(msg) => ctx.text(msg),
-            Err(_) => println!("Error sending data back to user: {}", &self.user.user_id),
+            Err(err) => println!(
+                "Error sending data back to user: {}. Error: {}",
+                &self.user.user_id, err
+            ),
         }
     }
 }

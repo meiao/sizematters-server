@@ -45,6 +45,8 @@ impl Handler<RoomMessage> for RoomManagerActor {
             }
             RoomMessage::UserUpdated { user } => self.user_updated(user),
             RoomMessage::LeaveRoom { user_id, room_name } => self.leave_room(user_id, room_name),
+            RoomMessage::UserLeft { user_id } => self.user_left(user_id),
+            RoomMessage::Vote { ref room_name, .. } => self.vote(room_name.clone(), msg),
             _ => {}
         };
     }
@@ -87,7 +89,7 @@ impl RoomManagerActor {
                 &user_id, &room_name
             ),
             Some(rooms) => {
-                let bool = rooms.remove(&room_name);
+                let _ = rooms.remove(&room_name);
             }
         };
 
@@ -100,6 +102,18 @@ impl RoomManagerActor {
         }
     }
 
+    fn user_left(&mut self, user_id: String) {
+        let rooms = self.user_room_map.remove(&user_id);
+        match rooms {
+            None => println!("User left, but no record of his rooms exists."),
+            Some(rooms) => {
+                rooms
+                    .into_iter()
+                    .for_each(|room| self.leave_room(user_id.clone(), room));
+            }
+        }
+    }
+
     fn user_updated(&mut self, user: UserData) {
         if !self.user_room_map.contains_key(&user.user_id) {
             self.user_room_map
@@ -108,6 +122,13 @@ impl RoomManagerActor {
         let room_names = self.user_room_map.get(&user.user_id).unwrap();
         if !room_names.is_empty() {
             self.notify_rooms(room_names, RoomMessage::UserUpdated { user });
+        }
+    }
+
+    fn vote(&mut self, room_name: String, msg: RoomMessage) {
+        match self.rooms.get(&room_name) {
+            None => println!("User tried to vote in an unknown room."),
+            Some(room) => room.do_send(msg),
         }
     }
 

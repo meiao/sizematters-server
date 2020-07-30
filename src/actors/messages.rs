@@ -39,6 +39,9 @@ pub enum RoomMessage {
     UserUpdated {
         user: UserData,
     },
+    UserLeft {
+        user_id: String,
+    },
 }
 
 /// Messages sent to the client

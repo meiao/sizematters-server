@@ -40,8 +40,9 @@ impl Handler<RoomMessage> for RoomActor {
                 ..
             } => self.join_room(password, user, recipient),
             RoomMessage::LeaveRoom { user_id, .. } => self.leave_room(user_id),
-            RoomMessage::Vote { .. } => {}
+            RoomMessage::Vote { ref user_id, .. } => println!("vote received {}", user_id),
             RoomMessage::UserUpdated { user } => self.user_updated(user),
+            _ => println!("Unsupported message reached RoomActor."),
         }
     }
 }
