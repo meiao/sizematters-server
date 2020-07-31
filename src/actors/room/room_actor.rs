@@ -1,6 +1,6 @@
 use crate::actors::messages::{ClientResponseMessage, RoomMessage};
 use crate::data::UserData;
-use actix::{Actor, Context, Handler, Recipient};
+use actix::{Actor, ActorContext, Context, Handler, Recipient};
 use std::borrow::Borrow;
 use std::collections::HashMap;
 
@@ -9,17 +9,19 @@ pub struct RoomActor {
     password: String,
     user_map: HashMap<String, ConnectionInfo>,
     vote_map: HashMap<String, u64>,
+    room_manager: Recipient<RoomMessage>,
+    voting_over: bool,
 }
 
 impl RoomActor {
-    pub fn new(name: String, password: String) -> RoomActor {
-        let user_map = HashMap::new();
-        let vote_map = HashMap::new();
+    pub fn new(name: String, password: String, room_manager: Recipient<RoomMessage>) -> RoomActor {
         RoomActor {
             name,
             password,
-            user_map,
-            vote_map,
+            user_map: HashMap::new(),
+            vote_map: HashMap::new(),
+            room_manager,
+            voting_over: false,
         }
     }
 }
@@ -39,8 +41,8 @@ impl Handler<RoomMessage> for RoomActor {
                 recipient,
                 ..
             } => self.join_room(password, user, recipient),
-            RoomMessage::LeaveRoom { user_id, .. } => self.leave_room(user_id),
-            RoomMessage::Vote { ref user_id, .. } => println!("vote received {}", user_id),
+            RoomMessage::LeaveRoom { user_id, .. } => self.leave_room(user_id, ctx),
+            RoomMessage::Vote { user_id, size, .. } => self.vote(user_id, size),
             RoomMessage::UserUpdated { user } => self.user_updated(user),
             _ => println!("Unsupported message reached RoomActor."),
         }
@@ -78,24 +80,81 @@ impl RoomActor {
                 .values()
                 .map(|conn_info| conn_info.user.clone())
                 .collect();
-            let room_name = self.name.clone();
-            let votes_cast = 0;
             let join_msg = ClientResponseMessage::RoomJoined {
-                room_name,
+                room_name: self.name.clone(),
                 users,
-                votes_cast,
+                votes_cast: self.vote_map.len(),
             };
             joiner.do_send(join_msg);
         };
     }
 
-    fn leave_room(&mut self, user_id: String) {
+    fn leave_room(&mut self, user_id: String, ctx: &mut Context<Self>) {
         let msg = ClientResponseMessage::UserLeft {
             user_id: user_id.clone(),
             room_name: self.name.clone(),
         };
         self.notify_users(msg);
+
         self.user_map.remove(&user_id);
+        self.vote_map.remove(&user_id);
+
+        let msg = ClientResponseMessage::VotesCast {
+            votes_cast: self.vote_map.len(),
+            room_name: self.name.clone(),
+        };
+        self.notify_users(msg);
+
+        if (self.user_map.is_empty()) {
+            let msg = RoomMessage::RoomClosing {
+                room_name: self.name.clone(),
+            };
+            self.room_manager.borrow().do_send(msg);
+            ctx.stop();
+        }
+    }
+
+    fn vote(&mut self, user_id: String, size: u64) {
+        if self.voting_over() {
+            match self.user_map.get(&user_id) {
+                None => println!("User tried to cast vote in a room he is not in."),
+                Some(user) => {
+                    let msg = ClientResponseMessage::VotingOver;
+                    user.recipient.borrow().do_send(msg);
+                }
+            }
+        } else {
+            match self.user_map.get(&user_id) {
+                None => println!("User tried to cast vote in a room he is not in."),
+                Some(user) => {
+                    let room_name = self.name.clone();
+                    let msg = ClientResponseMessage::UserVote { room_name, size };
+                    user.recipient.borrow().do_send(msg);
+                }
+            }
+
+            let already_voted = self.vote_map.contains_key(&user_id);
+            self.vote_map.insert(user_id, size);
+
+            if !already_voted {
+                let msg = ClientResponseMessage::VotesCast {
+                    room_name: self.name.clone(),
+                    votes_cast: self.vote_map.len(),
+                };
+                self.notify_users(msg);
+
+                if self.voting_over() {
+                    let room_name = self.name.clone();
+                    let votes = self.vote_map.clone();
+                    let msg = ClientResponseMessage::VoteResults { room_name, votes };
+                    self.notify_users(msg);
+                }
+            }
+        }
+    }
+
+    fn voting_over(&self) -> bool {
+        self.vote_map.len() == self.user_map.len()
     }
 
     fn user_updated(&mut self, user: UserData) {

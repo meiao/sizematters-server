@@ -111,7 +111,7 @@ impl ClientActor {
 
     fn notify_data_updated(&mut self, ctx: &mut <Self as Actor>::Context) {
         let user = self.user.clone();
-        self::Handler::handle(self, ClientResponseMessage::YourData { user }, ctx);
+        self::Handler::handle(self, ClientResponseMessage::UserData { user }, ctx);
 
         let user = self.user.clone();
         self.room_manager.do_send(RoomMessage::UserUpdated { user });

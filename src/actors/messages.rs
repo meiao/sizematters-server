@@ -42,6 +42,9 @@ pub enum RoomMessage {
     UserLeft {
         user_id: String,
     },
+    RoomClosing {
+        room_name: String,
+    },
 }
 
 /// Messages sent to the client
@@ -59,7 +62,7 @@ pub enum ClientResponseMessage {
     },
     VotesCast {
         room_name: String,
-        votes_cast: u64,
+        votes_cast: usize,
     },
     VoteResults {
         room_name: String,
@@ -71,7 +74,7 @@ pub enum ClientResponseMessage {
     RoomJoined {
         room_name: String,
         users: Vec<UserData>,
-        votes_cast: u64,
+        votes_cast: usize,
     },
     AlreadyInRoom {
         room_name: String,
@@ -82,9 +85,14 @@ pub enum ClientResponseMessage {
     UserUpdated {
         user: UserData,
     },
-    YourData {
+    UserData {
         user: UserData,
     },
+    UserVote {
+        room_name: String,
+        size: u64,
+    },
+    VotingOver,
     Error {
         msg: String,
     },

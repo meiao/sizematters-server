@@ -41,12 +41,14 @@ impl Handler<RoomMessage> for RoomManagerActor {
                     password.to_owned(),
                     user.user_id.to_owned(),
                     msg,
+                    ctx,
                 );
             }
             RoomMessage::UserUpdated { user } => self.user_updated(user),
             RoomMessage::LeaveRoom { user_id, room_name } => self.leave_room(user_id, room_name),
             RoomMessage::UserLeft { user_id } => self.user_left(user_id),
             RoomMessage::Vote { ref room_name, .. } => self.vote(room_name.clone(), msg),
+            RoomMessage::RoomClosing { room_name } => self.room_closing(room_name),
             _ => {}
         };
     }
@@ -59,15 +61,17 @@ impl RoomManagerActor {
         password: String,
         user_id: String,
         msg: RoomMessage,
+        ctx: &mut Context<Self>,
     ) {
         if !self.rooms.contains_key(&room_name) {
-            self.create_room(room_name.clone(), password);
+            self.create_room(room_name.clone(), password, ctx);
         }
         self.do_join_room(room_name, user_id, msg);
     }
 
-    fn create_room(&mut self, room_name: String, password: String) {
-        let room_actor = RoomActor::new(room_name.clone(), password).start();
+    fn create_room(&mut self, room_name: String, password: String, ctx: &mut Context<Self>) {
+        let room_manager = ctx.address().recipient();
+        let room_actor = RoomActor::new(room_name.clone(), password, room_manager).start();
         self.rooms.insert(room_name, room_actor);
     }
 
@@ -130,6 +134,10 @@ impl RoomManagerActor {
             None => println!("User tried to vote in an unknown room."),
             Some(room) => room.do_send(msg),
         }
+    }
+
+    fn room_closing(&mut self, room_name: String) {
+        self.rooms.remove(&room_name);
     }
 
     fn notify_rooms(&self, room_names: &HashSet<String>, msg: RoomMessage) {
