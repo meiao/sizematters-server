@@ -70,7 +70,7 @@ impl StreamHandler<Result<ws::Message, ws::ProtocolError>> for ClientActor {
 
 impl ClientActor {
     fn text(&mut self, msg: String, ctx: &mut <Self as Actor>::Context) {
-        println!("WS: {:?}", msg);
+        // println!("WS: {:?}", msg);
         let client_msg: Result<ClientRequestMessage, Error> = serde_json::from_str(msg.as_str());
         match client_msg {
             Ok(client_msg) => self.client_msg(client_msg, ctx),
@@ -92,6 +92,7 @@ impl ClientActor {
             } => self.join_room(room_name, password, ctx),
             ClientRequestMessage::LeaveRoom { room_name } => self.leave_room(room_name, ctx),
             ClientRequestMessage::Vote { room_name, size } => self.vote(room_name, size, ctx),
+            ClientRequestMessage::NewVote { room_name } => self.new_vote(room_name),
         }
     }
 
@@ -147,6 +148,14 @@ impl ClientActor {
             room_name,
             user_id: self.user.user_id.clone(),
             size,
+        };
+        self.room_manager.do_send(msg);
+    }
+
+    fn new_vote(&self, room_name: String) {
+        let msg = RoomMessage::NewVote {
+            room_name,
+            user_id: self.user.user_id.clone(),
         };
         self.room_manager.do_send(msg);
     }

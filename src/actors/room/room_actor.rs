@@ -43,6 +43,7 @@ impl Handler<RoomMessage> for RoomActor {
             } => self.join_room(password, user, recipient),
             RoomMessage::LeaveRoom { user_id, .. } => self.leave_room(user_id, ctx),
             RoomMessage::Vote { user_id, size, .. } => self.vote(user_id, size),
+            RoomMessage::NewVote { user_id, .. } => self.new_vote(user_id),
             RoomMessage::UserUpdated { user } => self.user_updated(user),
             _ => println!("Unsupported message reached RoomActor."),
         }
@@ -151,6 +152,20 @@ impl RoomActor {
                 }
             }
         }
+    }
+
+    fn new_vote(&mut self, user_id: String) {
+        if !self.user_map.contains_key(&user_id) {
+            println!("User tried to request new vote in a room they is not in.");
+            return;
+        }
+
+        self.voting_over = false;
+        self.vote_map.clear();
+
+        self.notify_users(ClientResponseMessage::NewVote {
+            room_name: self.name.clone(),
+        });
     }
 
     fn voting_over(&self) -> bool {

@@ -47,7 +47,8 @@ impl Handler<RoomMessage> for RoomManagerActor {
             RoomMessage::UserUpdated { user } => self.user_updated(user),
             RoomMessage::LeaveRoom { user_id, room_name } => self.leave_room(user_id, room_name),
             RoomMessage::UserLeft { user_id } => self.user_left(user_id),
-            RoomMessage::Vote { ref room_name, .. } => self.vote(room_name.clone(), msg),
+            RoomMessage::Vote { ref room_name, .. } => self.forward(room_name.clone(), msg),
+            RoomMessage::NewVote { ref room_name, .. } => self.forward(room_name.clone(), msg),
             RoomMessage::RoomClosing { room_name } => self.room_closing(room_name),
             _ => {}
         };
@@ -129,9 +130,9 @@ impl RoomManagerActor {
         }
     }
 
-    fn vote(&mut self, room_name: String, msg: RoomMessage) {
+    fn forward(&mut self, room_name: String, msg: RoomMessage) {
         match self.rooms.get(&room_name) {
-            None => println!("User tried to vote in an unknown room."),
+            None => println!("User tried to send a message to an unknown room."),
             Some(room) => room.do_send(msg),
         }
     }

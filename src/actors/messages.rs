@@ -15,6 +15,7 @@ pub enum ClientRequestMessage {
     JoinRoom { room_name: String, password: String },
     LeaveRoom { room_name: String },
     Vote { room_name: String, size: u64 },
+    NewVote { room_name: String },
 }
 
 /// messages sent to a RoomActor
@@ -35,6 +36,10 @@ pub enum RoomMessage {
         room_name: String,
         user_id: String,
         size: u64,
+    },
+    NewVote {
+        room_name: String,
+        user_id: String,
     },
     UserUpdated {
         user: UserData,
