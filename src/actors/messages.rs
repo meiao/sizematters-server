@@ -57,13 +57,28 @@ pub enum RoomMessage {
 #[serde(tag = "type", content = "data")]
 #[rtype(result = "()")]
 pub enum ClientResponseMessage {
-    UserEntered {
+    RoomJoined {
+        room_name: String,
+        users: Vec<UserData>,
+        votes_cast: usize,
+    },
+    UserJoined {
         room_name: String,
         user: UserData,
     },
     UserLeft {
         room_name: String,
         user_id: String,
+    },
+    UserUpdated {
+        user: UserData,
+    },
+    OwnData {
+        user: UserData,
+    },
+    OwnVote {
+        room_name: String,
+        size: u64,
     },
     VotesCast {
         room_name: String,
@@ -76,26 +91,11 @@ pub enum ClientResponseMessage {
     NewVote {
         room_name: String,
     },
-    RoomJoined {
-        room_name: String,
-        users: Vec<UserData>,
-        votes_cast: usize,
-    },
     AlreadyInRoom {
         room_name: String,
     },
     WrongPassword {
         room_name: String,
-    },
-    UserUpdated {
-        user: UserData,
-    },
-    UserData {
-        user: UserData,
-    },
-    UserVote {
-        room_name: String,
-        size: u64,
     },
     VotingOver,
     Error {

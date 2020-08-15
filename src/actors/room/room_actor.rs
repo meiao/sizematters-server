@@ -66,7 +66,7 @@ impl RoomActor {
             let room_name = self.name.clone();
             recipient.do_send(ClientResponseMessage::WrongPassword { room_name });
         } else {
-            let user_entered_msg = ClientResponseMessage::UserEntered {
+            let user_entered_msg = ClientResponseMessage::UserJoined {
                 room_name: self.name.clone(),
                 user: user.clone(),
             };
@@ -129,7 +129,7 @@ impl RoomActor {
                 None => println!("User tried to cast vote in a room he is not in."),
                 Some(user) => {
                     let room_name = self.name.clone();
-                    let msg = ClientResponseMessage::UserVote { room_name, size };
+                    let msg = ClientResponseMessage::OwnVote { room_name, size };
                     user.recipient.borrow().do_send(msg);
                 }
             }
