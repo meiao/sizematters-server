@@ -3,6 +3,8 @@ use crate::actors::room::RoomActor;
 use crate::data::UserData;
 use actix::prelude::*;
 use actix::Actor;
+use regex::Regex;
+use std::borrow::Borrow;
 use std::collections::hash_map::RandomState;
 use std::collections::{HashMap, HashSet};
 
@@ -10,6 +12,7 @@ use std::collections::{HashMap, HashSet};
 pub struct RoomManagerActor {
     rooms: HashMap<String, Addr<RoomActor>>,
     user_room_map: HashMap<String, HashSet<String>>,
+    roomNameValidator: Regex,
 }
 
 impl Actor for RoomManagerActor {
@@ -21,6 +24,7 @@ impl RoomManagerActor {
         Self {
             rooms: HashMap::new(),
             user_room_map: HashMap::new(),
+            roomNameValidator: Regex::new(r"^[-a-zA-Z ]+$").unwrap(),
         }
     }
 }
@@ -34,12 +38,15 @@ impl Handler<RoomMessage> for RoomManagerActor {
                 ref room_name,
                 ref password,
                 ref user,
-                ..
+                ref password_is_hash,
+                ref recipient,
             } => {
                 self.join_room(
                     room_name.to_owned(),
                     password.to_owned(),
+                    password_is_hash.clone(),
                     user.user_id.to_owned(),
+                    recipient.clone(),
                     msg,
                     ctx,
                 );
@@ -60,19 +67,34 @@ impl RoomManagerActor {
         &mut self,
         room_name: String,
         password: String,
+        password_is_hash: bool,
         user_id: String,
+        recipient: Recipient<ClientResponseMessage>,
         msg: RoomMessage,
         ctx: &mut Context<Self>,
     ) {
-        if !self.rooms.contains_key(&room_name) {
-            self.create_room(room_name.clone(), password, ctx);
+        if self.roomNameValidator.is_match(&room_name) {
+            if !self.rooms.contains_key(&room_name) {
+                self.create_room(room_name.clone(), password, password_is_hash, ctx);
+            }
+            self.do_join_room(room_name, user_id, msg);
+        } else {
+            recipient
+                .borrow()
+                .do_send(ClientResponseMessage::InvalidRoomName);
         }
-        self.do_join_room(room_name, user_id, msg);
     }
 
-    fn create_room(&mut self, room_name: String, password: String, ctx: &mut Context<Self>) {
+    fn create_room(
+        &mut self,
+        room_name: String,
+        password: String,
+        password_is_hash: bool,
+        ctx: &mut Context<Self>,
+    ) {
         let room_manager = ctx.address().recipient();
-        let room_actor = RoomActor::new(room_name.clone(), password, room_manager).start();
+        let room_actor =
+            RoomActor::new(room_name.clone(), password, password_is_hash, room_manager).start();
         self.rooms.insert(room_name, room_actor);
     }
 

@@ -10,12 +10,27 @@ use std::collections::HashMap;
 #[rtype(result = "()")]
 pub enum ClientRequestMessage {
     Register,
-    SetName { name: String },
-    SetAvatar { avatar: String },
-    JoinRoom { room_name: String, password: String },
-    LeaveRoom { room_name: String },
-    Vote { room_name: String, size: u64 },
-    NewVote { room_name: String },
+    SetName {
+        name: String,
+    },
+    SetAvatar {
+        avatar: String,
+    },
+    JoinRoom {
+        room_name: String,
+        password: String,
+        password_is_hash: bool,
+    },
+    LeaveRoom {
+        room_name: String,
+    },
+    Vote {
+        room_name: String,
+        size: u64,
+    },
+    NewVote {
+        room_name: String,
+    },
 }
 
 /// messages sent to a RoomActor
@@ -25,6 +40,7 @@ pub enum RoomMessage {
     JoinRoom {
         room_name: String,
         password: String,
+        password_is_hash: bool,
         user: UserData,
         recipient: Recipient<ClientResponseMessage>,
     },
@@ -59,6 +75,7 @@ pub enum RoomMessage {
 pub enum ClientResponseMessage {
     RoomJoined {
         room_name: String,
+        hashed_password: String,
         users: Vec<UserData>,
         votes_cast: usize,
     },
@@ -97,6 +114,7 @@ pub enum ClientResponseMessage {
     WrongPassword {
         room_name: String,
     },
+    InvalidRoomName,
     VotingOver,
     Error {
         msg: String,

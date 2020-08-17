@@ -89,7 +89,8 @@ impl ClientActor {
             ClientRequestMessage::JoinRoom {
                 room_name,
                 password,
-            } => self.join_room(room_name, password, ctx),
+                password_is_hash,
+            } => self.join_room(room_name, password, password_is_hash, ctx),
             ClientRequestMessage::LeaveRoom { room_name } => self.leave_room(room_name, ctx),
             ClientRequestMessage::Vote { room_name, size } => self.vote(room_name, size, ctx),
             ClientRequestMessage::NewVote { room_name } => self.new_vote(room_name),
@@ -122,6 +123,7 @@ impl ClientActor {
         &mut self,
         room_name: String,
         password: String,
+        password_is_hash: bool,
         ctx: &mut <Self as Actor>::Context,
     ) {
         let user = self.user.clone();
@@ -129,6 +131,7 @@ impl ClientActor {
         let msg = RoomMessage::JoinRoom {
             room_name,
             password,
+            password_is_hash,
             user,
             recipient,
         };

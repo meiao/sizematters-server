@@ -6,7 +6,7 @@ use std::collections::HashMap;
 
 pub struct RoomActor {
     name: String,
-    password: String,
+    hashed_password: String,
     user_map: HashMap<String, ConnectionInfo>,
     vote_map: HashMap<String, u64>,
     room_manager: Recipient<RoomMessage>,
@@ -14,10 +14,16 @@ pub struct RoomActor {
 }
 
 impl RoomActor {
-    pub fn new(name: String, password: String, room_manager: Recipient<RoomMessage>) -> RoomActor {
+    pub fn new(
+        name: String,
+        password: String,
+        password_is_hash: bool,
+        room_manager: Recipient<RoomMessage>,
+    ) -> RoomActor {
+        let hashed_password = compute_password(password, password_is_hash);
         RoomActor {
             name,
-            password,
+            hashed_password,
             user_map: HashMap::new(),
             vote_map: HashMap::new(),
             room_manager,
@@ -37,10 +43,11 @@ impl Handler<RoomMessage> for RoomActor {
         match msg {
             RoomMessage::JoinRoom {
                 password,
+                password_is_hash,
                 user,
                 recipient,
                 ..
-            } => self.join_room(password, user, recipient),
+            } => self.join_room(password, password_is_hash, user, recipient),
             RoomMessage::LeaveRoom { user_id, .. } => self.leave_room(user_id, ctx),
             RoomMessage::Vote { user_id, size, .. } => self.vote(user_id, size),
             RoomMessage::NewVote { user_id, .. } => self.new_vote(user_id),
@@ -54,15 +61,17 @@ impl RoomActor {
     fn join_room(
         &mut self,
         password: String,
+        password_is_hash: bool,
         user: UserData,
         recipient: Recipient<ClientResponseMessage>,
     ) {
         let user_id = user.user_id.clone();
+        let hashed_password = compute_password(password, password_is_hash);
 
         if self.user_map.contains_key(&user_id) {
             let room_name = self.name.clone();
             recipient.do_send(ClientResponseMessage::AlreadyInRoom { room_name });
-        } else if !(self.password.eq(&password)) {
+        } else if !(self.hashed_password.eq(&hashed_password)) {
             let room_name = self.name.clone();
             recipient.do_send(ClientResponseMessage::WrongPassword { room_name });
         } else {
@@ -83,6 +92,7 @@ impl RoomActor {
                 .collect();
             let join_msg = ClientResponseMessage::RoomJoined {
                 room_name: self.name.clone(),
+                hashed_password: self.hashed_password.clone(),
                 users,
                 votes_cast: self.vote_map.len(),
             };
@@ -191,6 +201,14 @@ impl RoomActor {
             .map(|result| result.err()) // in case there are errors sending the message
             .flatten()
             .for_each(|error| println!("Error sending message: {}", error));
+    }
+}
+
+fn compute_password(password: String, password_is_hash: bool) -> String {
+    if password_is_hash {
+        password
+    } else {
+        format!("{:x}", md5::compute(password))
     }
 }
 
