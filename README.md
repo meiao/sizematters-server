@@ -1,6 +1,6 @@
 # SizeMatters
 
-SizeMatters is a ticket sizing (poker planning) to make those long grooming sessions a little more
+SizeMatters is a ticket sizing (poker planning) webapp to make those long grooming sessions a little more
 tolerable.
 
 One of the goals is to create a tool that does not track users and has a minimal entry barrier.
