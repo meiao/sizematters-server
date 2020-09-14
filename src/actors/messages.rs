@@ -54,36 +54,52 @@ pub enum ClientRequestMessage {
 /// messages sent to a RoomActor
 #[derive(Message, Clone)]
 #[rtype(result = "()")]
-pub enum RoomMessage {
-    JoinRoom {
-        room_name: String,
-        password: String,
-        password_is_hash: bool,
-        user: UserData,
-        recipient: Recipient<ClientResponseMessage>,
-    },
-    LeaveRoom {
-        room_name: String,
-        user_id: String,
-    },
-    Vote {
-        room_name: String,
-        user_id: String,
-        size: u64,
-    },
-    NewVote {
-        room_name: String,
-        user_id: String,
-    },
-    UserUpdated {
-        user: UserData,
-    },
-    UserLeft {
-        user_id: String,
-    },
-    RoomClosing {
-        room_name: String,
-    },
+pub struct JoinRoom {
+    pub room_name: String,
+    pub password: String,
+    pub password_is_hash: bool,
+    pub user: UserData,
+    pub recipient: Recipient<ClientResponseMessage>,
+}
+
+#[derive(Message, Clone)]
+#[rtype(result = "()")]
+pub struct LeaveRoom {
+    pub room_name: String,
+    pub user_id: String,
+}
+
+#[derive(Message, Clone)]
+#[rtype(result = "()")]
+pub struct Vote {
+    pub room_name: String,
+    pub user_id: String,
+    pub size: u64,
+}
+
+#[derive(Message, Clone)]
+#[rtype(result = "()")]
+pub struct NewVote {
+    pub room_name: String,
+    pub user_id: String,
+}
+
+#[derive(Message, Clone)]
+#[rtype(result = "()")]
+pub struct UserUpdated {
+    pub user: UserData,
+}
+
+#[derive(Message, Clone)]
+#[rtype(result = "()")]
+pub struct UserLeft {
+    pub user_id: String,
+}
+
+#[derive(Message, Clone)]
+#[rtype(result = "()")]
+pub struct RoomClosing {
+    pub room_name: String,
 }
 
 /// Messages sent to the client

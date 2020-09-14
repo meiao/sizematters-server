@@ -16,9 +16,12 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-use crate::actors::messages::{ClientResponseMessage, RoomMessage};
+use crate::actors::messages::{
+    ClientResponseMessage, JoinRoom, LeaveRoom, NewVote, UserUpdated, Vote,
+};
+use crate::actors::RoomManagerActor;
 use crate::data::UserData;
-use actix::{Actor, ActorContext, Context, Handler, Recipient};
+use actix::{Actor, ActorContext, Addr, Context, Handler, Recipient};
 use std::borrow::Borrow;
 use std::collections::HashMap;
 
@@ -27,7 +30,7 @@ pub struct RoomActor {
     hashed_password: String,
     user_map: HashMap<String, ConnectionInfo>,
     vote_map: HashMap<String, u64>,
-    room_manager: Recipient<RoomMessage>,
+    room_manager: Addr<RoomManagerActor>,
     voting_over: bool,
 }
 
@@ -36,7 +39,7 @@ impl RoomActor {
         name: String,
         password: String,
         password_is_hash: bool,
-        room_manager: Recipient<RoomMessage>,
+        room_manager: Addr<RoomManagerActor>,
     ) -> RoomActor {
         let hashed_password = compute_password(password, password_is_hash);
         RoomActor {
@@ -54,44 +57,23 @@ impl Actor for RoomActor {
     type Context = Context<Self>;
 }
 
-impl Handler<RoomMessage> for RoomActor {
+impl Handler<JoinRoom> for RoomActor {
     type Result = ();
 
-    fn handle(&mut self, msg: RoomMessage, ctx: &mut Context<Self>) -> Self::Result {
-        match msg {
-            RoomMessage::JoinRoom {
-                password,
-                password_is_hash,
-                user,
-                recipient,
-                ..
-            } => self.join_room(password, password_is_hash, user, recipient),
-            RoomMessage::LeaveRoom { user_id, .. } => self.leave_room(user_id, ctx),
-            RoomMessage::Vote { user_id, size, .. } => self.vote(user_id, size),
-            RoomMessage::NewVote { user_id, .. } => self.new_vote(user_id),
-            RoomMessage::UserUpdated { user } => self.user_updated(user),
-            _ => println!("Unsupported message reached RoomActor."),
-        }
-    }
-}
-
-impl RoomActor {
-    fn join_room(
-        &mut self,
-        password: String,
-        password_is_hash: bool,
-        user: UserData,
-        recipient: Recipient<ClientResponseMessage>,
-    ) {
+    fn handle(&mut self, msg: JoinRoom, ctx: &mut Context<Self>) -> Self::Result {
+        let user = msg.user;
+        let recipient = msg.recipient;
         let user_id = user.user_id.clone();
-        let hashed_password = compute_password(password, password_is_hash);
+        let hashed_password = compute_password(msg.password, msg.password_is_hash);
 
         if self.user_map.contains_key(&user_id) {
-            let room_name = self.name.clone();
-            recipient.do_send(ClientResponseMessage::AlreadyInRoom { room_name });
+            recipient.do_send(ClientResponseMessage::AlreadyInRoom {
+                room_name: msg.room_name,
+            });
         } else if !(self.hashed_password.eq(&hashed_password)) {
-            let room_name = self.name.clone();
-            recipient.do_send(ClientResponseMessage::WrongPassword { room_name });
+            recipient.do_send(ClientResponseMessage::WrongPassword {
+                room_name: msg.room_name,
+            });
         } else {
             let user_entered_msg = ClientResponseMessage::UserJoined {
                 room_name: self.name.clone(),
@@ -117,13 +99,18 @@ impl RoomActor {
             joiner.do_send(join_msg);
         };
     }
+}
 
-    fn leave_room(&mut self, user_id: String, ctx: &mut Context<Self>) {
-        let msg = ClientResponseMessage::UserLeft {
+impl Handler<LeaveRoom> for RoomActor {
+    type Result = ();
+
+    fn handle(&mut self, msg: LeaveRoom, ctx: &mut Context<Self>) -> Self::Result {
+        let user_id = msg.user_id;
+        let user_left_msg = ClientResponseMessage::UserLeft {
             user_id: user_id.clone(),
             room_name: self.name.clone(),
         };
-        self.notify_users(msg);
+        self.notify_users(user_left_msg);
 
         self.user_map.remove(&user_id);
         self.vote_map.remove(&user_id);
@@ -134,7 +121,7 @@ impl RoomActor {
         };
         self.notify_users(msg);
 
-        if (self.user_map.is_empty()) {
+        if self.user_map.is_empty() {
             let msg = RoomMessage::RoomClosing {
                 room_name: self.name.clone(),
             };
@@ -142,8 +129,14 @@ impl RoomActor {
             ctx.stop();
         }
     }
+}
 
-    fn vote(&mut self, user_id: String, size: u64) {
+impl Handler<Vote> for RoomActor {
+    type Result = ();
+
+    fn handle(&mut self, msg: Vote, ctx: &mut Context<Self>) -> Self::Result {
+        let user_id = msg.user_id;
+        let size = msg.size;
         if self.voting_over() {
             match self.user_map.get(&user_id) {
                 None => println!("User tried to cast vote in a room he is not in."),
@@ -181,9 +174,13 @@ impl RoomActor {
             }
         }
     }
+}
 
-    fn new_vote(&mut self, user_id: String) {
-        if !self.user_map.contains_key(&user_id) {
+impl Handler<NewVote> for RoomActor {
+    type Result = ();
+
+    fn handle(&mut self, msg: NewVote, ctx: &mut Context<Self>) -> Self::Result {
+        if !self.user_map.contains_key(&msg.user_id) {
             println!("User tried to request new vote in a room they is not in.");
             return;
         }
@@ -195,12 +192,13 @@ impl RoomActor {
             room_name: self.name.clone(),
         });
     }
+}
 
-    fn voting_over(&self) -> bool {
-        self.vote_map.len() == self.user_map.len()
-    }
+impl Handler<UserUpdated> for RoomActor {
+    type Result = ();
 
-    fn user_updated(&mut self, user: UserData) {
+    fn handle(&mut self, msg: UserUpdated, ctx: &mut Context<Self>) -> Self::Result {
+        let user = msg.user;
         match self.user_map.get_mut(&user.user_id) {
             None => println!("Updating user not found in room."),
             Some(conn_info) => {
@@ -208,6 +206,12 @@ impl RoomActor {
                 self.notify_users(ClientResponseMessage::UserUpdated { user });
             }
         };
+    }
+}
+
+impl RoomActor {
+    fn voting_over(&self) -> bool {
+        self.vote_map.len() == self.user_map.len()
     }
 
     fn notify_users(&self, msg: ClientResponseMessage) {

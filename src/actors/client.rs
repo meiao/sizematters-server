@@ -24,7 +24,7 @@ use std::time::Instant;
 use uuid::Uuid;
 
 use super::RoomManagerActor;
-use crate::actors::messages::{ClientRequestMessage, ClientResponseMessage, RoomMessage};
+use crate::actors::messages::{ClientRequestMessage, ClientResponseMessage};
 use crate::data::UserData;
 
 /// How often heartbeat pings are sent

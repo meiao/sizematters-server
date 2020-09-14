@@ -16,14 +16,13 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-use crate::actors::messages::{ClientResponseMessage, RoomMessage};
+use crate::actors::messages::{
+    ClientResponseMessage, JoinRoom, LeaveRoom, NewVote, RoomClosing, UserLeft, UserUpdated, Vote,
+};
 use crate::actors::room::RoomActor;
-use crate::data::UserData;
 use actix::prelude::*;
 use actix::Actor;
 use regex::Regex;
-use std::borrow::Borrow;
-use std::collections::hash_map::RandomState;
 use std::collections::{HashMap, HashSet};
 
 /// Room manager. This is an actor that knows about all the created rooms and where each user is.
@@ -42,67 +41,34 @@ impl RoomManagerActor {
         Self {
             rooms: HashMap::new(),
             user_room_map: HashMap::new(),
-            roomNameValidator: Regex::new(r"^[-a-zA-Z ]+$").unwrap(),
+            roomNameValidator: Regex::new(r"^[-_a-zA-Z]+$").unwrap(),
         }
     }
 }
 
-impl Handler<RoomMessage> for RoomManagerActor {
+impl Handler<JoinRoom> for RoomManagerActor {
     type Result = ();
 
-    fn handle(&mut self, msg: RoomMessage, ctx: &mut Context<Self>) -> Self::Result {
-        match msg {
-            RoomMessage::JoinRoom {
-                ref room_name,
-                ref password,
-                ref user,
-                ref password_is_hash,
-                ref recipient,
-            } => {
-                self.join_room(
-                    room_name.to_owned(),
-                    password.to_owned(),
-                    password_is_hash.clone(),
-                    user.user_id.to_owned(),
-                    recipient.clone(),
-                    msg,
-                    ctx,
-                );
+    fn handle(&mut self, msg: JoinRoom, ctx: &mut Context<Self>) -> Self::Result {
+        let room_name = msg.room_name.clone();
+        let user_id = msg.user.user_id.clone();
+        if self.roomNameValidator.is_match(&room_name) {
+            if !self.rooms.contains_key(&room_name) {
+                let password = msg.password.clone();
+                let password_is_hash = msg.password_is_hash;
+                self.create_room(room_name.clone(), password, password_is_hash, ctx);
             }
-            RoomMessage::UserUpdated { user } => self.user_updated(user),
-            RoomMessage::LeaveRoom { user_id, room_name } => self.leave_room(user_id, room_name),
-            RoomMessage::UserLeft { user_id } => self.user_left(user_id),
-            RoomMessage::Vote { ref room_name, .. } => self.forward(room_name.clone(), msg),
-            RoomMessage::NewVote { ref room_name, .. } => self.forward(room_name.clone(), msg),
-            RoomMessage::RoomClosing { room_name } => self.room_closing(room_name),
-            _ => {}
-        };
+            self.join_room(room_name, user_id, msg);
+        } else {
+            msg.recipient
+                // TODO investigate whether this borrow is needed
+                // .borrow()
+                .do_send(ClientResponseMessage::InvalidRoomName);
+        }
     }
 }
 
 impl RoomManagerActor {
-    fn join_room(
-        &mut self,
-        room_name: String,
-        password: String,
-        password_is_hash: bool,
-        user_id: String,
-        recipient: Recipient<ClientResponseMessage>,
-        msg: RoomMessage,
-        ctx: &mut Context<Self>,
-    ) {
-        if self.roomNameValidator.is_match(&room_name) {
-            if !self.rooms.contains_key(&room_name) {
-                self.create_room(room_name.clone(), password, password_is_hash, ctx);
-            }
-            self.do_join_room(room_name, user_id, msg);
-        } else {
-            recipient
-                .borrow()
-                .do_send(ClientResponseMessage::InvalidRoomName);
-        }
-    }
-
     fn create_room(
         &mut self,
         room_name: String,
@@ -110,13 +76,13 @@ impl RoomManagerActor {
         password_is_hash: bool,
         ctx: &mut Context<Self>,
     ) {
-        let room_manager = ctx.address().recipient();
+        let room_manager = ctx.address();
         let room_actor =
             RoomActor::new(room_name.clone(), password, password_is_hash, room_manager).start();
         self.rooms.insert(room_name, room_actor);
     }
 
-    fn do_join_room(&mut self, room_name: String, user_id: String, msg: RoomMessage) {
+    fn join_room(&mut self, room_name: String, user_id: String, msg: JoinRoom) {
         match self.user_room_map.get_mut(&user_id) {
             None => println!("User trying to join not found in room manager."),
             Some(room_names) => {
@@ -126,7 +92,19 @@ impl RoomManagerActor {
             }
         }
     }
+}
 
+impl Handler<LeaveRoom> for RoomManagerActor {
+    type Result = ();
+
+    fn handle(&mut self, msg: LeaveRoom, ctx: &mut Context<Self>) -> Self::Result {
+        let user_id = msg.user_id;
+        let room_name = msg.room_name;
+        self.leave_room(user_id, room_name);
+    }
+}
+
+impl RoomManagerActor {
     fn leave_room(&mut self, user_id: String, room_name: String) {
         match self.user_room_map.get_mut(&user_id) {
             None => println!(
@@ -146,8 +124,13 @@ impl RoomManagerActor {
             Some(room) => room.do_send(RoomMessage::LeaveRoom { user_id, room_name }),
         }
     }
+}
 
-    fn user_left(&mut self, user_id: String) {
+impl Handler<UserLeft> for RoomManagerActor {
+    type Result = ();
+
+    fn handle(&mut self, msg: UserLeft, ctx: &mut Context<Self>) -> Self::Result {
+        let user_id = msg.user_id;
         let rooms = self.user_room_map.remove(&user_id);
         match rooms {
             None => println!("User left, but no record of his rooms exists."),
@@ -158,34 +141,63 @@ impl RoomManagerActor {
             }
         }
     }
+}
 
-    fn user_updated(&mut self, user: UserData) {
+impl Handler<UserUpdated> for RoomManagerActor {
+    type Result = ();
+
+    fn handle(&mut self, msg: UserUpdated, ctx: &mut Context<Self>) -> Self::Result {
+        let user = msg.user;
         if !self.user_room_map.contains_key(&user.user_id) {
             self.user_room_map
                 .insert(user.user_id.clone(), HashSet::new());
         }
         let room_names = self.user_room_map.get(&user.user_id).unwrap();
         if !room_names.is_empty() {
-            self.notify_rooms(room_names, RoomMessage::UserUpdated { user });
+            self.notify_rooms(room_names, UserUpdated { user });
         }
     }
+}
 
-    fn forward(&mut self, room_name: String, msg: RoomMessage) {
+impl Handler<Vote> for RoomManagerActor {
+    type Result = ();
+
+    fn handle(&mut self, msg: Vote, ctx: &mut Context<Self>) -> Self::Result {
+        let room_name = msg.room_name.clone();
         match self.rooms.get(&room_name) {
             None => println!("User tried to send a message to an unknown room."),
             Some(room) => room.do_send(msg),
         }
     }
+}
 
-    fn room_closing(&mut self, room_name: String) {
-        self.rooms.remove(&room_name);
+impl Handler<NewVote> for RoomManagerActor {
+    type Result = ();
+
+    fn handle(&mut self, msg: NewVote, ctx: &mut Context<Self>) -> Self::Result {
+        let room_name = msg.room_name.clone();
+        match self.rooms.get(&room_name) {
+            None => println!("User tried to send a message to an unknown room."),
+            Some(room) => room.do_send(msg),
+        }
     }
+}
 
+impl RoomManagerActor {
     fn notify_rooms(&self, room_names: &HashSet<String>, msg: RoomMessage) {
         room_names
             .iter()
             .map(|room_name| self.rooms.get(room_name))
             .flatten()
             .for_each(|room| room.do_send(msg.clone()));
+    }
+}
+
+impl Handler<RoomClosing> for RoomManagerActor {
+    type Result = ();
+
+    fn handle(&mut self, msg: RoomClosing, ctx: &mut Context<Self>) -> Self::Result {
+        let room_name = msg.room_name;
+        self.rooms.remove(&room_name);
     }
 }
