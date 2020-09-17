@@ -115,9 +115,9 @@ pub enum ClientResponseMessage {
         room_name: String,
         size: u64,
     },
-    VotesCast {
+    VoteStatus {
         room_name: String,
-        votes_cast: usize,
+        votes: HashMap<String, bool>,
     },
     VoteResults {
         room_name: String,

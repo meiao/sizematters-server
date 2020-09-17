@@ -132,13 +132,9 @@ impl RoomActor {
         self.user_map.remove(&user_id);
         self.vote_map.remove(&user_id);
 
-        let msg = ClientResponseMessage::VotesCast {
-            votes_cast: self.vote_map.len(),
-            room_name: self.name.clone(),
-        };
-        self.notify_users(msg);
+        self.send_vote_info();
 
-        if (self.user_map.is_empty()) {
+        if self.user_map.is_empty() {
             let msg = RoomMessage::RoomClosing {
                 room_name: self.name.clone(),
             };
@@ -170,19 +166,25 @@ impl RoomActor {
             self.vote_map.insert(user_id, size);
 
             if !already_voted {
-                let msg = ClientResponseMessage::VotesCast {
-                    room_name: self.name.clone(),
-                    votes_cast: self.vote_map.len(),
-                };
-                self.notify_users(msg);
-
-                if self.voting_over() {
-                    let room_name = self.name.clone();
-                    let votes = self.vote_map.clone();
-                    let msg = ClientResponseMessage::VoteResults { room_name, votes };
-                    self.notify_users(msg);
-                }
+                self.send_vote_info();
             }
+        }
+    }
+
+    fn send_vote_info(&self) {
+        let room_name = self.name.clone();
+        if self.voting_over() {
+            let votes = self.vote_map.clone();
+            let msg = ClientResponseMessage::VoteResults { room_name, votes };
+            self.notify_users(msg);
+        } else {
+            let mut votes = HashMap::new();
+            for user_id in self.user_map.keys() {
+                let has_voted = self.vote_map.contains_key(user_id);
+                votes.insert(user_id.to_owned(), has_voted);
+            }
+            let msg = ClientResponseMessage::VoteStatus { room_name, votes };
+            self.notify_users(msg);
         }
     }
 
