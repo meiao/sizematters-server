@@ -42,7 +42,7 @@ impl RoomManagerActor {
         Self {
             rooms: HashMap::new(),
             user_room_map: HashMap::new(),
-            roomNameValidator: Regex::new(r"^[-a-zA-Z ]+$").unwrap(),
+            roomNameValidator: Regex::new(r"^[-_a-zA-Z]+$").unwrap(),
         }
     }
 }
@@ -118,7 +118,7 @@ impl RoomManagerActor {
 
     fn do_join_room(&mut self, room_name: String, user_id: String, msg: RoomMessage) {
         match self.user_room_map.get_mut(&user_id) {
-            None => println!("User trying to join not found in room manager."),
+            None => println!("RoomManager: User trying to join not found in room manager."),
             Some(room_names) => {
                 room_names.insert(room_name.to_owned());
                 let room = self.rooms.get(&room_name).unwrap();
@@ -130,7 +130,7 @@ impl RoomManagerActor {
     fn leave_room(&mut self, user_id: String, room_name: String) {
         match self.user_room_map.get_mut(&user_id) {
             None => println!(
-                "{} tried to exit {} which they is not into.",
+                "RoomManager: {} tried to exit {} which they is not into.",
                 &user_id, &room_name
             ),
             Some(rooms) => {
@@ -140,7 +140,7 @@ impl RoomManagerActor {
 
         match self.rooms.get(&room_name) {
             None => println!(
-                "{} tried to exit {} which does not exist",
+                "RoomManager: {} tried to exit {} which does not exist",
                 &user_id, &room_name
             ),
             Some(room) => room.do_send(RoomMessage::LeaveRoom { user_id, room_name }),
@@ -150,7 +150,7 @@ impl RoomManagerActor {
     fn user_left(&mut self, user_id: String) {
         let rooms = self.user_room_map.remove(&user_id);
         match rooms {
-            None => println!("User left, but no record of his rooms exists."),
+            None => println!("RoomManager: User left, but no record of his rooms exists."),
             Some(rooms) => {
                 rooms
                     .into_iter()
@@ -172,7 +172,7 @@ impl RoomManagerActor {
 
     fn forward(&mut self, room_name: String, msg: RoomMessage) {
         match self.rooms.get(&room_name) {
-            None => println!("User tried to send a message to an unknown room."),
+            None => println!("RoomManager: User tried to send a message to an unknown room."),
             Some(room) => room.do_send(msg),
         }
     }

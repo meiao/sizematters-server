@@ -17,7 +17,9 @@
  */
 
 use crate::actors::messages::{ClientResponseMessage, RoomMessage};
+use crate::actors::RoomManagerActor;
 use crate::data::UserData;
+use actix::prelude::SendError;
 use actix::{Actor, ActorContext, Context, Handler, Recipient};
 use std::borrow::Borrow;
 use std::collections::HashMap;
@@ -70,7 +72,7 @@ impl Handler<RoomMessage> for RoomActor {
             RoomMessage::Vote { user_id, size, .. } => self.vote(user_id, size),
             RoomMessage::NewVote { user_id, .. } => self.new_vote(user_id),
             RoomMessage::UserUpdated { user } => self.user_updated(user),
-            _ => println!("Unsupported message reached RoomActor."),
+            _ => println!("RoomActor: Unhandled message."),
         }
     }
 }
@@ -88,10 +90,12 @@ impl RoomActor {
 
         if self.user_map.contains_key(&user_id) {
             let room_name = self.name.clone();
-            recipient.do_send(ClientResponseMessage::AlreadyInRoom { room_name });
+            let msg = ClientResponseMessage::AlreadyInRoom { room_name };
+            self.notify_user(&user_id, &recipient, msg);
         } else if !(self.hashed_password.eq(&hashed_password)) {
             let room_name = self.name.clone();
-            recipient.do_send(ClientResponseMessage::WrongPassword { room_name });
+            let msg = ClientResponseMessage::WrongPassword { room_name };
+            self.notify_user(&user_id, &recipient, msg);
         } else {
             let user_entered_msg = ClientResponseMessage::UserJoined {
                 room_name: self.name.clone(),
@@ -114,7 +118,7 @@ impl RoomActor {
                 users,
                 votes_cast: self.vote_map.len(),
             };
-            joiner.do_send(join_msg);
+            self.notify_user(&user_id, joiner, join_msg);
         };
     }
 
@@ -138,7 +142,7 @@ impl RoomActor {
             let msg = RoomMessage::RoomClosing {
                 room_name: self.name.clone(),
             };
-            self.room_manager.borrow().do_send(msg);
+            self.notify_manager(msg);
             ctx.stop();
         }
     }
@@ -146,19 +150,19 @@ impl RoomActor {
     fn vote(&mut self, user_id: String, size: u64) {
         if self.voting_over() {
             match self.user_map.get(&user_id) {
-                None => println!("User tried to cast vote in a room he is not in."),
+                None => println!("RoomActor: User tried to cast vote in a room he is not in."),
                 Some(user) => {
                     let msg = ClientResponseMessage::VotingOver;
-                    user.recipient.borrow().do_send(msg);
+                    self.notify_user(&user.user.user_id, &user.recipient, msg);
                 }
             }
         } else {
             match self.user_map.get(&user_id) {
-                None => println!("User tried to cast vote in a room he is not in."),
+                None => println!("RoomActor: User tried to cast vote in a room he is not in."),
                 Some(user) => {
                     let room_name = self.name.clone();
                     let msg = ClientResponseMessage::OwnVote { room_name, size };
-                    user.recipient.borrow().do_send(msg);
+                    self.notify_user(&user.user.user_id, &user.recipient, msg);
                 }
             }
 
@@ -184,7 +188,7 @@ impl RoomActor {
 
     fn new_vote(&mut self, user_id: String) {
         if !self.user_map.contains_key(&user_id) {
-            println!("User tried to request new vote in a room they is not in.");
+            println!("RoomActor: User tried to request new vote in a room they is not in.");
             return;
         }
 
@@ -202,7 +206,7 @@ impl RoomActor {
 
     fn user_updated(&mut self, user: UserData) {
         match self.user_map.get_mut(&user.user_id) {
-            None => println!("Updating user not found in room."),
+            None => println!("RoomActor: Updating user not found in room."),
             Some(conn_info) => {
                 conn_info.user = user.clone();
                 self.notify_users(ClientResponseMessage::UserUpdated { user });
@@ -211,14 +215,32 @@ impl RoomActor {
     }
 
     fn notify_users(&self, msg: ClientResponseMessage) {
-        self.user_map
-            .values()
-            .into_iter()
-            .map(|conn_info| conn_info.recipient.borrow())
-            .map(|recipient| recipient.do_send(msg.clone()))
-            .map(|result| result.err()) // in case there are errors sending the message
-            .flatten()
-            .for_each(|error| println!("Error sending message: {}", error));
+        for (user_id, conn_info) in self.user_map.iter() {
+            self.notify_user(user_id, &conn_info.recipient, msg.clone());
+        }
+    }
+
+    fn notify_user(
+        &self,
+        user_id: &str,
+        recipient: &Recipient<ClientResponseMessage>,
+        msg: ClientResponseMessage,
+    ) {
+        if let Err(err) = recipient.do_send(msg) {
+            println!("RoomActor: Unable to reach ClientActor.\nError: {}", err);
+            self.remove_user(user_id.to_owned());
+        }
+    }
+
+    fn notify_manager(&self, msg: RoomMessage) {
+        if let Err(err) = self.room_manager.do_send(msg) {
+            println!("RoomActor: Unable to reach room manager.\nError: {}", err);
+        }
+    }
+
+    fn remove_user(&self, user_id: String) {
+        let msg = RoomMessage::UserLeft { user_id };
+        self.notify_manager(msg);
     }
 }
 

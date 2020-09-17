@@ -218,7 +218,7 @@ impl Handler<ClientResponseMessage> for ClientActor {
         match msg {
             Ok(msg) => ctx.text(msg),
             Err(err) => println!(
-                "Error sending data back to user: {}. Error: {}",
+                "ClientActor: error sending data back to user: {}. Error: {}",
                 &self.user.user_id, err
             ),
         }
