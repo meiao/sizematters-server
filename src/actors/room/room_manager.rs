@@ -23,14 +23,13 @@ use actix::prelude::*;
 use actix::Actor;
 use regex::Regex;
 use std::borrow::Borrow;
-use std::collections::hash_map::RandomState;
 use std::collections::{HashMap, HashSet};
 
 /// Room manager. This is an actor that knows about all the created rooms and where each user is.
 pub struct RoomManagerActor {
     rooms: HashMap<String, Addr<RoomActor>>,
     user_room_map: HashMap<String, HashSet<String>>,
-    roomNameValidator: Regex,
+    room_name_validator: Regex,
 }
 
 impl Actor for RoomManagerActor {
@@ -42,7 +41,7 @@ impl RoomManagerActor {
         Self {
             rooms: HashMap::new(),
             user_room_map: HashMap::new(),
-            roomNameValidator: Regex::new(r"^[-_a-zA-Z]+$").unwrap(),
+            room_name_validator: Regex::new(r"^[-_a-zA-Z]{1,50}$").unwrap(),
         }
     }
 }
@@ -91,7 +90,7 @@ impl RoomManagerActor {
         msg: RoomMessage,
         ctx: &mut Context<Self>,
     ) {
-        if self.roomNameValidator.is_match(&room_name) {
+        if self.room_name_validator.is_match(&room_name) {
             if !self.rooms.contains_key(&room_name) {
                 self.create_room(room_name.clone(), password, password_is_hash, ctx);
             }

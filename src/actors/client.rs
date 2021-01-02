@@ -75,7 +75,7 @@ impl StreamHandler<Result<ws::Message, ws::ProtocolError>> for ClientActor {
                 self.last_heartbeat = Instant::now();
             }
             Ok(ws::Message::Text(text)) => self.text(text, ctx),
-            Ok(ws::Message::Binary(bin)) => {} // ignore binary
+            Ok(ws::Message::Binary(_bin)) => {} // ignore binary
             Ok(ws::Message::Close(reason)) => {
                 self.user_left();
                 ctx.close(reason);
@@ -156,7 +156,7 @@ impl ClientActor {
         self.room_manager.do_send(msg);
     }
 
-    fn leave_room(&mut self, room_name: String, ctx: &mut <Self as Actor>::Context) {
+    fn leave_room(&mut self, room_name: String, _ctx: &mut <Self as Actor>::Context) {
         let msg = RoomMessage::LeaveRoom {
             user_id: self.user.user_id.clone(),
             room_name,
@@ -164,7 +164,7 @@ impl ClientActor {
         self.room_manager.do_send(msg);
     }
 
-    fn vote(&mut self, room_name: String, size: u64, ctx: &mut <Self as Actor>::Context) {
+    fn vote(&mut self, room_name: String, size: u64, _ctx: &mut <Self as Actor>::Context) {
         let msg = RoomMessage::Vote {
             room_name,
             user_id: self.user.user_id.clone(),
