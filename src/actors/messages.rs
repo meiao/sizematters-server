@@ -134,6 +134,7 @@ pub enum ClientResponseMessage {
     },
     InvalidRoomName,
     VotingOver,
+    CannotJoinMultipleRooms,
     Error {
         msg: String,
     },

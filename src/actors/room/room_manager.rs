@@ -22,13 +22,12 @@ use crate::data::UserData;
 use actix::prelude::*;
 use actix::Actor;
 use regex::Regex;
-use std::borrow::Borrow;
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 
 /// Room manager. This is an actor that knows about all the created rooms and where each user is.
 pub struct RoomManagerActor {
     rooms: HashMap<String, Addr<RoomActor>>,
-    user_room_map: HashMap<String, HashSet<String>>,
+    user_room_map: HashMap<String, String>,
     room_name_validator: Regex,
 }
 
@@ -94,11 +93,9 @@ impl RoomManagerActor {
             if !self.rooms.contains_key(&room_name) {
                 self.create_room(room_name.clone(), password, password_is_hash, ctx);
             }
-            self.do_join_room(room_name, user_id, msg);
+            self.do_join_room(room_name, user_id, recipient, msg);
         } else {
-            recipient
-                .borrow()
-                .do_send(ClientResponseMessage::InvalidRoomName);
+            self.notify_user(&user_id, &recipient, ClientResponseMessage::InvalidRoomName);
         }
     }
 
@@ -115,13 +112,26 @@ impl RoomManagerActor {
         self.rooms.insert(room_name, room_actor);
     }
 
-    fn do_join_room(&mut self, room_name: String, user_id: String, msg: RoomMessage) {
-        match self.user_room_map.get_mut(&user_id) {
-            None => println!("RoomManager: User trying to join not found in room manager."),
-            Some(room_names) => {
-                room_names.insert(room_name.to_owned());
+    fn do_join_room(
+        &mut self,
+        room_name: String,
+        user_id: String,
+        recipient: Recipient<ClientResponseMessage>,
+        msg: RoomMessage,
+    ) {
+        match self.user_room_map.get(&user_id) {
+            None => {
                 let room = self.rooms.get(&room_name).unwrap();
                 room.do_send(msg);
+                self.user_room_map.insert(user_id, room_name);
+            }
+            Some(_) => {
+                println!("RoomManager: User trying to join a second room.");
+                self.notify_user(
+                    &user_id,
+                    &recipient,
+                    ClientResponseMessage::CannotJoinMultipleRooms,
+                );
             }
         }
     }
@@ -132,8 +142,8 @@ impl RoomManagerActor {
                 "RoomManager: {} tried to exit {} which they is not into.",
                 &user_id, &room_name
             ),
-            Some(rooms) => {
-                let _ = rooms.remove(&room_name);
+            Some(_) => {
+                let _ = self.user_room_map.remove(&user_id);
             }
         };
 
@@ -147,25 +157,20 @@ impl RoomManagerActor {
     }
 
     fn user_left(&mut self, user_id: String) {
-        let rooms = self.user_room_map.remove(&user_id);
-        match rooms {
+        let room_name = self.user_room_map.remove(&user_id);
+        match room_name {
             None => println!("RoomManager: User left, but no record of his rooms exists."),
-            Some(rooms) => {
-                rooms
-                    .into_iter()
-                    .for_each(|room| self.leave_room(user_id.clone(), room));
-            }
+            Some(room) => self.leave_room(user_id.clone(), room),
         }
     }
 
     fn user_updated(&mut self, user: UserData) {
-        if !self.user_room_map.contains_key(&user.user_id) {
-            self.user_room_map
-                .insert(user.user_id.clone(), HashSet::new());
-        }
-        let room_names = self.user_room_map.get(&user.user_id).unwrap();
-        if !room_names.is_empty() {
-            self.notify_rooms(room_names, RoomMessage::UserUpdated { user });
+        let room_name = self.user_room_map.get(&user.user_id);
+        match room_name {
+            None => println!(
+                "RoomManager: User tried to update his info, but no record of his rooms exists."
+            ),
+            Some(room) => self.notify_room(room, RoomMessage::UserUpdated { user }),
         }
     }
 
@@ -180,11 +185,23 @@ impl RoomManagerActor {
         self.rooms.remove(&room_name);
     }
 
-    fn notify_rooms(&self, room_names: &HashSet<String>, msg: RoomMessage) {
-        room_names
-            .iter()
-            .map(|room_name| self.rooms.get(room_name))
-            .flatten()
-            .for_each(|room| room.do_send(msg.clone()));
+    fn notify_room(&self, room_name: &String, msg: RoomMessage) {
+        let room = self.rooms.get(room_name);
+        match room {
+            None => println!("RoomManager: Unable to find room to send message to"),
+            Some(room) => room.do_send(msg),
+        }
+    }
+
+    fn notify_user(
+        &mut self,
+        user_id: &str,
+        recipient: &Recipient<ClientResponseMessage>,
+        msg: ClientResponseMessage,
+    ) {
+        if let Err(err) = recipient.do_send(msg) {
+            println!("RoomManager: Unable to reach ClientActor.\nError: {}", err);
+            self.user_left(user_id.to_owned());
+        }
     }
 }
