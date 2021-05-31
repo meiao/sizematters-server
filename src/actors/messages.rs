@@ -49,6 +49,9 @@ pub enum ClientRequestMessage {
     NewVote {
         room_name: String,
     },
+    Randomize {
+        room_name: String,
+    },
 }
 
 /// messages sent to a RoomActor
@@ -82,6 +85,9 @@ pub enum RoomMessage {
         user_id: String,
     },
     RoomClosing {
+        room_name: String,
+    },
+    Randomize {
         room_name: String,
     },
 }
@@ -131,6 +137,10 @@ pub enum ClientResponseMessage {
     },
     WrongPassword {
         room_name: String,
+    },
+    Randomized {
+        room_name: String,
+        selected_user_id: String,
     },
     InvalidRoomName,
     VotingOver,

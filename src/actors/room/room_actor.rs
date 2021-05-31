@@ -24,6 +24,7 @@ use crate::actors::messages::{ClientResponseMessage, RoomMessage};
 use crate::data::UserData;
 use actix::{Actor, Context, Handler, Recipient};
 use std::collections::HashMap;
+use rand::Rng;
 
 pub struct RoomActor {
     name: String,
@@ -73,6 +74,7 @@ impl Handler<RoomMessage> for RoomActor {
             RoomMessage::Vote { user_id, size, .. } => self.vote(user_id, size),
             RoomMessage::NewVote { user_id, .. } => self.new_vote(user_id),
             RoomMessage::UserUpdated { user } => self.user_updated(user),
+            RoomMessage::Randomize { .. } => self.randomize(),
             _ => println!("RoomActor: Unhandled message."),
         }
     }
@@ -116,6 +118,23 @@ impl RoomActor {
     fn remove_user(&self, user_id: String) {
         let msg = RoomMessage::UserLeft { user_id };
         self.notify_manager(msg);
+    }
+
+    fn randomize(&self) {
+        let users : Vec<String> = self.user_map.keys().cloned().collect();
+        let mut user_index = 0;
+        if self.user_map.len() > 1 {
+            user_index = rand::thread_rng().gen_range(0..self.user_map.len());
+        }
+        let selected_user = users.get(user_index);
+        let room_name = self.name.clone();
+        match selected_user {
+            None => println!("RoomActor: User not found in room."),
+            Some(user_id) => {
+                let selected_user_id = user_id.clone();
+                self.notify_users(ClientResponseMessage::Randomized { room_name, selected_user_id });
+            }
+        }
     }
 }
 
