@@ -73,6 +73,7 @@ impl Handler<RoomMessage> for RoomManagerActor {
             RoomMessage::Vote { ref room_name, .. } => self.forward(room_name.clone(), msg),
             RoomMessage::NewVote { ref room_name, .. } => self.forward(room_name.clone(), msg),
             RoomMessage::RoomClosing { room_name } => self.room_closing(room_name),
+            RoomMessage::Randomize { ref room_name } => self.forward(room_name.clone(), msg),
             _ => {}
         };
     }

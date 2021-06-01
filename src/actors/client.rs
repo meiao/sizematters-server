@@ -112,6 +112,7 @@ impl ClientActor {
             ClientRequestMessage::LeaveRoom { room_name } => self.leave_room(room_name, ctx),
             ClientRequestMessage::Vote { room_name, size } => self.vote(room_name, size, ctx),
             ClientRequestMessage::NewVote { room_name } => self.new_vote(room_name),
+            ClientRequestMessage::Randomize { room_name } => self.randomize(room_name),
         }
     }
 
@@ -184,6 +185,13 @@ impl ClientActor {
     fn user_left(&mut self) {
         let msg = RoomMessage::UserLeft {
             user_id: self.user.user_id.clone(),
+        };
+        self.room_manager.do_send(msg);
+    }
+
+    fn randomize(&self, room_name: String) {
+        let msg = RoomMessage::Randomize {
+            room_name,
         };
         self.room_manager.do_send(msg);
     }
