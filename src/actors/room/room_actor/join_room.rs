@@ -80,11 +80,14 @@ impl RoomActor {
             .values()
             .map(|conn_info| conn_info.user.clone())
             .collect();
+
         let join_msg = ClientResponseMessage::RoomJoined {
             room_name: self.name.clone(),
             hashed_password: self.hashed_password.clone(),
             users,
             votes_cast: self.vote_map.len(),
+            scale_values: self.scale_values.clone(),
+            selected_scale: self.selected_scale.clone()
         };
         self.notify_user(&user_id, joiner, join_msg);
     }

@@ -20,7 +20,7 @@ use serde::{Deserialize, Serialize};
 use std::clone::Clone;
 use std::hash::Hash;
 
-#[derive(Serialize, Deserialize, Clone, Hash, Eq, PartialEq)]
+#[derive(Serialize, Deserialize, Clone, Hash, Eq, PartialEq, Debug)]
 pub struct UserData {
     pub user_id: String,
     pub name: String,
@@ -41,4 +41,12 @@ impl UserData {
     pub fn set_avatar(&mut self, avatar: &str) {
         self.gravatar_id = format!("{:x}", md5::compute(avatar));
     }
+}
+
+#[derive(Serialize, Deserialize, Clone, Hash, Eq, PartialEq, Debug)]
+pub struct Scale
+{
+    pub name: String,
+    pub displayName: String,
+    pub values: Vec<String>
 }

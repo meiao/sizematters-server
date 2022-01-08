@@ -88,7 +88,6 @@ impl StreamHandler<Result<ws::Message, ws::ProtocolError>> for ClientActor {
 
 impl ClientActor {
     fn text(&mut self, msg: String, ctx: &mut <Self as Actor>::Context) {
-        // println!("WS: {:?}", msg);
         let client_msg: Result<ClientRequestMessage, Error> = serde_json::from_str(msg.as_str());
         match client_msg {
             Ok(client_msg) => self.client_msg(client_msg, ctx),
@@ -100,6 +99,7 @@ impl ClientActor {
     }
 
     fn client_msg(&mut self, msg: ClientRequestMessage, ctx: &mut <Self as Actor>::Context) {
+        println!("WS: {:?}", msg);
         match msg {
             ClientRequestMessage::Register => self.register(ctx),
             ClientRequestMessage::SetName { name } => self.set_name(name, ctx),
@@ -113,6 +113,8 @@ impl ClientActor {
             ClientRequestMessage::Vote { room_name, size } => self.vote(room_name, size, ctx),
             ClientRequestMessage::NewVote { room_name } => self.new_vote(room_name),
             ClientRequestMessage::Randomize { room_name } => self.randomize(room_name),
+            ClientRequestMessage::ChangeScale { room_name, selected_scale } => self.change_scale
+            (room_name, selected_scale),
         }
     }
 
@@ -192,6 +194,13 @@ impl ClientActor {
     fn randomize(&self, room_name: String) {
         let msg = RoomMessage::Randomize {
             room_name,
+        };
+        self.room_manager.do_send(msg);
+    }
+    fn change_scale(&self, room_name: String, selected_scale: String) {
+        let msg = RoomMessage::ChangeScale {
+            room_name,
+            selected_scale,
         };
         self.room_manager.do_send(msg);
     }

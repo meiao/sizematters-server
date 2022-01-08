@@ -22,6 +22,7 @@ mod vote;
 
 use crate::actors::messages::{ClientResponseMessage, RoomMessage};
 use crate::data::UserData;
+use crate::data::Scale;
 use actix::{Actor, Context, Handler, Recipient};
 use std::collections::HashMap;
 use rand::Rng;
@@ -33,6 +34,8 @@ pub struct RoomActor {
     vote_map: HashMap<String, u64>,
     room_manager: Recipient<RoomMessage>,
     voting_over: bool,
+    scale_values: HashMap<String, Scale>,
+    selected_scale: String,
 }
 
 impl RoomActor {
@@ -43,6 +46,46 @@ impl RoomActor {
         room_manager: Recipient<RoomMessage>,
     ) -> RoomActor {
         let hashed_password = compute_password(password, password_is_hash);
+
+        let mut scaleValues = HashMap::new();
+
+        //Add here to expand the scales we support.
+        scaleValues.insert(String::from("fibonacci"),
+       Scale
+           {
+               name: String::from("fibonacci"),
+               displayName: String::from("Fibonacci"),
+               values: vec!
+               [
+                   String::from("0"),
+                   String::from("1"),
+                   String::from("2"),
+                   String::from("3"),
+                   String::from("5"),
+                   String::from("8"),
+                   String::from("13"),
+                   String::from("No Vote")
+                   ]
+           }
+        );
+
+       scaleValues.insert(String::from("fistOfFive"),
+       Scale
+           {
+               name: String::from("fistOfFive"),
+               displayName: String::from("FistOfFive"),
+               values: vec!
+               [
+                   String::from("1"),
+                   String::from("2"),
+                   String::from("3"),
+                   String::from("4"),
+                   String::from("5"),
+                   String::from("No Vote")
+               ]
+           }
+        );
+
         RoomActor {
             name,
             hashed_password,
@@ -50,6 +93,8 @@ impl RoomActor {
             vote_map: HashMap::new(),
             room_manager,
             voting_over: false,
+            scale_values: scaleValues,
+            selected_scale: String::from("fibonacci")
         }
     }
 }
@@ -62,6 +107,7 @@ impl Handler<RoomMessage> for RoomActor {
     type Result = ();
 
     fn handle(&mut self, msg: RoomMessage, ctx: &mut Context<Self>) -> Self::Result {
+        println!("RoomActor.forward {:?}", msg);
         match msg {
             RoomMessage::JoinRoom {
                 password,
@@ -75,6 +121,7 @@ impl Handler<RoomMessage> for RoomActor {
             RoomMessage::NewVote { user_id, .. } => self.new_vote(user_id),
             RoomMessage::UserUpdated { user } => self.user_updated(user),
             RoomMessage::Randomize { .. } => self.randomize(),
+            RoomMessage::ChangeScale { selected_scale, .. } => self.change_scale(selected_scale),
             _ => println!("RoomActor: Unhandled message."),
         }
     }
@@ -133,6 +180,21 @@ impl RoomActor {
             Some(user_id) => {
                 let selected_user_id = user_id.clone();
                 self.notify_users(ClientResponseMessage::Randomized { room_name, selected_user_id });
+            }
+        }
+    }
+    fn change_scale(&self, selected_scale_name: String)
+    {
+        println!("RoomActor.change_scale, selected_scale {:?}", selected_scale_name);
+        let selected_scale = self.scale_values.get(&selected_scale_name);
+
+        let room_name = self.name.clone();
+        match selected_scale {
+            None => println!("RoomActor: selected scale not found for key {}", selected_scale_name),
+            Some(selected_scale) => {
+                self.notify_users(ClientResponseMessage::ScaleChanged { room_name,
+                    selected_scale: selected_scale.clone()
+                });
             }
         }
     }
