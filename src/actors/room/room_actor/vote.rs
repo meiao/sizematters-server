@@ -21,7 +21,7 @@ use crate::actors::room::RoomActor;
 use std::collections::HashMap;
 
 impl RoomActor {
-    pub(super) fn vote(&mut self, user_id: String, size: u64) {
+    pub(super) fn vote(&mut self, user_id: String, size: String) {
         if self.voting_over() {
             match self.user_map.get(&user_id) {
                 None => println!("RoomActor: User tried to cast vote in a room he is not in."),
@@ -35,13 +35,14 @@ impl RoomActor {
                 None => println!("RoomActor: User tried to cast vote in a room he is not in."),
                 Some(user) => {
                     let room_name = self.name.clone();
-                    let msg = ClientResponseMessage::OwnVote { room_name, size };
+                    let msg = ClientResponseMessage::OwnVote { room_name: room_name,
+                        size: size.clone() };
                     self.notify_user(&user.user.user_id, &user.recipient, msg);
                 }
             }
 
             let already_voted = self.vote_map.contains_key(&user_id);
-            self.vote_map.insert(user_id, size);
+            self.vote_map.insert(user_id, size.clone());
 
             if !already_voted {
                 self.send_vote_info();

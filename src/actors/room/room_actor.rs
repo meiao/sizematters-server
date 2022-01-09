@@ -31,11 +31,11 @@ pub struct RoomActor {
     name: String,
     hashed_password: String,
     user_map: HashMap<String, ConnectionInfo>,
-    vote_map: HashMap<String, u64>,
+    vote_map: HashMap<String, String>,
     room_manager: Recipient<RoomMessage>,
     voting_over: bool,
     scale_values: HashMap<String, Scale>,
-    selected_scale: String,
+    selected_scale_name: String,
 }
 
 impl RoomActor {
@@ -94,7 +94,7 @@ impl RoomActor {
             room_manager,
             voting_over: false,
             scale_values: scaleValues,
-            selected_scale: String::from("fibonacci")
+            selected_scale_name: String::from("fibonacci")
         }
     }
 }
@@ -121,7 +121,7 @@ impl Handler<RoomMessage> for RoomActor {
             RoomMessage::NewVote { user_id, .. } => self.new_vote(user_id),
             RoomMessage::UserUpdated { user } => self.user_updated(user),
             RoomMessage::Randomize { .. } => self.randomize(),
-            RoomMessage::ChangeScale { selected_scale, .. } => self.change_scale(selected_scale),
+            RoomMessage::ChangeScale { selected_scale_name: selected_scale, .. } => self.change_scale(selected_scale),
             _ => println!("RoomActor: Unhandled message."),
         }
     }

@@ -87,7 +87,7 @@ impl RoomActor {
             users,
             votes_cast: self.vote_map.len(),
             scale_values: self.scale_values.clone(),
-            selected_scale: self.selected_scale.clone()
+            selected_scale_name: self.selected_scale_name.clone()
         };
         self.notify_user(&user_id, joiner, join_msg);
     }

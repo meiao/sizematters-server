@@ -113,8 +113,8 @@ impl ClientActor {
             ClientRequestMessage::Vote { room_name, size } => self.vote(room_name, size, ctx),
             ClientRequestMessage::NewVote { room_name } => self.new_vote(room_name),
             ClientRequestMessage::Randomize { room_name } => self.randomize(room_name),
-            ClientRequestMessage::ChangeScale { room_name, selected_scale } => self.change_scale
-            (room_name, selected_scale),
+            ClientRequestMessage::ChangeScale { room_name, selected_scale_name:selected_scale_name } => self.change_scale
+            (room_name, selected_scale_name),
         }
     }
 
@@ -167,7 +167,7 @@ impl ClientActor {
         self.room_manager.do_send(msg);
     }
 
-    fn vote(&mut self, room_name: String, size: u64, _ctx: &mut <Self as Actor>::Context) {
+    fn vote(&mut self, room_name: String, size: String, _ctx: &mut <Self as Actor>::Context) {
         let msg = RoomMessage::Vote {
             room_name,
             user_id: self.user.user_id.clone(),
@@ -197,10 +197,10 @@ impl ClientActor {
         };
         self.room_manager.do_send(msg);
     }
-    fn change_scale(&self, room_name: String, selected_scale: String) {
+    fn change_scale(&self, room_name: String, selected_scale_name: String) {
         let msg = RoomMessage::ChangeScale {
             room_name,
-            selected_scale,
+            selected_scale_name: selected_scale_name,
         };
         self.room_manager.do_send(msg);
     }

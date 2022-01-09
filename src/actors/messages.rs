@@ -45,7 +45,7 @@ pub enum ClientRequestMessage {
     },
     Vote {
         room_name: String,
-        size: u64,
+        size: String,
     },
     NewVote {
         room_name: String,
@@ -55,7 +55,7 @@ pub enum ClientRequestMessage {
     },
     ChangeScale{
         room_name: String,
-        selected_scale: String,
+        selected_scale_name: String,
     },
 }
 
@@ -77,7 +77,7 @@ pub enum RoomMessage {
     Vote {
         room_name: String,
         user_id: String,
-        size: u64,
+        size: String,
     },
     NewVote {
         room_name: String,
@@ -97,7 +97,7 @@ pub enum RoomMessage {
     },
     ChangeScale{
         room_name: String,
-        selected_scale: String,
+        selected_scale_name: String,
     },
 }
 
@@ -112,7 +112,7 @@ pub enum ClientResponseMessage {
         users: Vec<UserData>,
         votes_cast: usize,
         scale_values: HashMap<String, Scale>,
-        selected_scale: String,
+        selected_scale_name: String,
     },
     UserJoined {
         room_name: String,
@@ -130,7 +130,7 @@ pub enum ClientResponseMessage {
     },
     OwnVote {
         room_name: String,
-        size: u64,
+        size: String,
     },
     VoteStatus {
         room_name: String,
@@ -138,7 +138,7 @@ pub enum ClientResponseMessage {
     },
     VoteResults {
         room_name: String,
-        votes: HashMap<String, u64>,
+        votes: HashMap<String, String>,
     },
     NewVote {
         room_name: String,
