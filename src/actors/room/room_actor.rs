@@ -183,7 +183,7 @@ impl RoomActor {
             }
         }
     }
-    fn change_scale(&self, selected_scale_name: String)
+    fn change_scale(&mut self, selected_scale_name: String)
     {
         println!("RoomActor.change_scale, selected_scale {:?}", selected_scale_name);
         let selected_scale = self.scale_values.get(&selected_scale_name);
@@ -192,6 +192,7 @@ impl RoomActor {
         match selected_scale {
             None => println!("RoomActor: selected scale not found for key {}", selected_scale_name),
             Some(selected_scale) => {
+                self.selected_scale_name = selected_scale_name;
                 self.notify_users(ClientResponseMessage::ScaleChanged { room_name,
                     selected_scale: selected_scale.clone()
                 });
