@@ -64,7 +64,7 @@ impl RoomActor {
                    String::from("5"),
                    String::from("8"),
                    String::from("13"),
-                   String::from("No Vote")
+                   String::from("NV")
                    ]
            }
         );
@@ -81,7 +81,7 @@ impl RoomActor {
                    String::from("3"),
                    String::from("4"),
                    String::from("5"),
-                   String::from("No Vote")
+                   String::from("NV")
                ]
            }
         );
