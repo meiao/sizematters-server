@@ -50,7 +50,8 @@ impl RoomActor {
         let mut scaleValues = HashMap::new();
 
         //Add here to expand the scales we support.
-        scaleValues.insert(String::from("fibonacci"),
+        //This should be the ONLY place scales need to be specified!
+       scaleValues.insert(String::from("fibonacci"),
        Scale
            {
                name: String::from("fibonacci"),
