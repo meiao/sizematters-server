@@ -76,6 +76,7 @@ impl Handler<RoomMessage> for RoomManagerActor {
             RoomMessage::RoomClosing { room_name } => self.room_closing(room_name),
             RoomMessage::Randomize { ref room_name } => self.forward(room_name.clone(), msg),
             RoomMessage::ChangeScale { ref room_name, ..} => self.forward(room_name.clone(), msg),
+            RoomMessage::UpdateActive { ref room_name, ..} => self.forward(room_name.clone(), msg),
             _ => {}
         };
     }

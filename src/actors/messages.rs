@@ -57,6 +57,11 @@ pub enum ClientRequestMessage {
         room_name: String,
         selected_scale_name: String,
     },
+    UpdateActive{
+        room_name: String,
+        user_id: String,
+        active: bool,
+    },
 }
 
 /// messages sent to a RoomActor
@@ -98,6 +103,11 @@ pub enum RoomMessage {
     ChangeScale{
         room_name: String,
         selected_scale_name: String,
+    },
+    UpdateActive{
+        room_name: String,
+        user_id: String,
+        active: bool,
     },
 }
 
@@ -162,5 +172,10 @@ pub enum ClientResponseMessage {
     ScaleChanged{
         room_name: String,
         selected_scale: Scale,
+    },
+    ActiveUpdated{
+        room_name: String,
+        user_id: String,
+        active: bool,
     },
 }

@@ -83,5 +83,7 @@ impl RoomActor {
 
     fn voting_over(&self) -> bool {
         self.vote_map.len() == self.user_map.len()
+        // Consider creating a new map, an observer_map.  When a user goes inactive, move them to
+        // the observer map.  Rest of the code should then work.
     }
 }

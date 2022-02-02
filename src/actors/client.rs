@@ -113,8 +113,10 @@ impl ClientActor {
             ClientRequestMessage::Vote { room_name, size } => self.vote(room_name, size, ctx),
             ClientRequestMessage::NewVote { room_name } => self.new_vote(room_name),
             ClientRequestMessage::Randomize { room_name } => self.randomize(room_name),
-            ClientRequestMessage::ChangeScale { room_name, selected_scale_name:selected_scale_name } => self.change_scale
-            (room_name, selected_scale_name),
+            ClientRequestMessage::ChangeScale { room_name, selected_scale_name: selected_scale_name }
+                => self.change_scale(room_name, selected_scale_name),
+            ClientRequestMessage::UpdateActive { room_name, user_id, active }
+                => self.update_active(room_name, user_id, active, ctx)
         }
     }
 
@@ -125,6 +127,14 @@ impl ClientActor {
     fn set_name(&mut self, name: String, ctx: &mut <Self as Actor>::Context) {
         self.user.name = name;
         self.notify_data_updated(ctx);
+    }
+
+    fn update_active(&mut self,
+                     room_name: String,
+                     user_id: String,
+                     active: bool,
+                     ctx: &mut <Self as Actor>::Context) {
+        self.room_manager.do_send(RoomMessage::UpdateActive { room_name, user_id, active });
     }
 
     fn set_avatar(&mut self, avatar: String, ctx: &mut <Self as Actor>::Context) {

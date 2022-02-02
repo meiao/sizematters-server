@@ -25,6 +25,7 @@ pub struct UserData {
     pub user_id: String,
     pub name: String,
     pub gravatar_id: String,
+    pub active: bool,
 }
 
 impl UserData {
@@ -35,6 +36,7 @@ impl UserData {
             user_id,
             name,
             gravatar_id,
+            active: true
         }
     }
 

@@ -123,6 +123,8 @@ impl Handler<RoomMessage> for RoomActor {
             RoomMessage::UserUpdated { user } => self.user_updated(user),
             RoomMessage::Randomize { .. } => self.randomize(),
             RoomMessage::ChangeScale { selected_scale_name: selected_scale, .. } => self.change_scale(selected_scale),
+            RoomMessage::UpdateActive { user_id: user_id, active: active, ..  } => self
+                .update_active(user_id, active),
             _ => println!("RoomActor: Unhandled message."),
         }
     }
@@ -196,6 +198,29 @@ impl RoomActor {
                 self.selected_scale_name = selected_scale_name;
                 self.notify_users(ClientResponseMessage::ScaleChanged { room_name,
                     selected_scale: selected_scale.clone()
+                });
+            }
+        }
+    }
+    fn update_active(&mut self, user_id: String, active: bool)
+    {
+        let room_name = self.name.clone();
+        match self.user_map.get(&user_id) {
+            None => println!("User not found while updating active status: {}", user_id),
+            Some(mut current_user) => {
+                let new_user = UserData{
+                    user_id: current_user.user.user_id.clone(),
+                    name: current_user.user.name.clone(),
+                    gravatar_id: current_user.user.gravatar_id.clone(),
+                    active: active
+                };
+                let new_conn_info = ConnectionInfo{
+                    user: new_user,
+                    recipient: current_user.recipient.clone()
+                };
+                self.user_map.insert(user_id.clone(), new_conn_info);
+                self.notify_users(ClientResponseMessage::ActiveUpdated { room_name,
+                    user_id: user_id.clone(), active: active
                 });
             }
         }
