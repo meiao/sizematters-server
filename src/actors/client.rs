@@ -99,7 +99,7 @@ impl ClientActor {
     }
 
     fn client_msg(&mut self, msg: ClientRequestMessage, ctx: &mut <Self as Actor>::Context) {
-        println!("WS: {:?}", msg);
+        println!("\nWS: {:?}", msg);
         match msg {
             ClientRequestMessage::Register => self.register(ctx),
             ClientRequestMessage::SetName { name } => self.set_name(name, ctx),
@@ -116,7 +116,7 @@ impl ClientActor {
             ClientRequestMessage::ChangeScale { room_name, selected_scale_name: selected_scale_name }
                 => self.change_scale(room_name, selected_scale_name),
             ClientRequestMessage::UpdateActive { room_name, user_id, active }
-                => self.update_active(room_name, user_id, active, ctx)
+                => self.update_active(room_name, user_id, active)
         }
     }
 
@@ -132,8 +132,7 @@ impl ClientActor {
     fn update_active(&mut self,
                      room_name: String,
                      user_id: String,
-                     active: bool,
-                     ctx: &mut <Self as Actor>::Context) {
+                     active: bool) {
         self.room_manager.do_send(RoomMessage::UpdateActive { room_name, user_id, active });
     }
 

@@ -23,7 +23,7 @@ use std::collections::HashMap;
 impl RoomActor {
     pub(super) fn vote(&mut self, user_id: String, size: String) {
         if self.voting_over() {
-            match self.user_map.get(&user_id) {
+            match self.active_user_map.get(&user_id) {
                 None => println!("RoomActor: User tried to cast vote in a room he is not in."),
                 Some(user) => {
                     let msg = ClientResponseMessage::VotingOver;
@@ -31,21 +31,20 @@ impl RoomActor {
                 }
             }
         } else {
-            match self.user_map.get(&user_id) {
+            match self.active_user_map.get(&user_id) {
                 None => println!("RoomActor: User tried to cast vote in a room he is not in."),
                 Some(user) => {
                     let room_name = self.name.clone();
                     let msg = ClientResponseMessage::OwnVote { room_name: room_name,
                         size: size.clone() };
                     self.notify_user(&user.user.user_id, &user.recipient, msg);
+                    let already_voted = self.vote_map.contains_key(&user_id);
+                    self.vote_map.insert(user_id, size.clone());
+
+                    if !already_voted {
+                        self.send_vote_info();
+                    }
                 }
-            }
-
-            let already_voted = self.vote_map.contains_key(&user_id);
-            self.vote_map.insert(user_id, size.clone());
-
-            if !already_voted {
-                self.send_vote_info();
             }
         }
     }
@@ -58,7 +57,7 @@ impl RoomActor {
             self.notify_users(msg);
         } else {
             let mut votes = HashMap::new();
-            for user_id in self.user_map.keys() {
+            for user_id in self.active_user_map.keys() {
                 let has_voted = self.vote_map.contains_key(user_id);
                 votes.insert(user_id.to_owned(), has_voted);
             }
@@ -68,22 +67,22 @@ impl RoomActor {
     }
 
     pub(super) fn new_vote(&mut self, user_id: String) {
-        if !self.user_map.contains_key(&user_id) {
-            println!("RoomActor: User tried to request new vote in a room they is not in.");
-            return;
+        if(self.in_room( &user_id))
+        {
+            self.voting_over = false;
+            self.vote_map.clear();
+
+            self.notify_users(ClientResponseMessage::NewVote {
+                room_name: self.name.clone(),
+            });
         }
-
-        self.voting_over = false;
-        self.vote_map.clear();
-
-        self.notify_users(ClientResponseMessage::NewVote {
-            room_name: self.name.clone(),
-        });
+        else
+        {
+            println!("RoomActor: User tried to request new vote in a room they is not in.");
+        }
     }
 
     fn voting_over(&self) -> bool {
-        self.vote_map.len() == self.user_map.len()
-        // Consider creating a new map, an observer_map.  When a user goes inactive, move them to
-        // the observer map.  Rest of the code should then work.
+        self.vote_map.len() == self.active_user_map.len()
     }
 }

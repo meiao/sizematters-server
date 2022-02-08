@@ -49,7 +49,6 @@ impl Handler<RoomMessage> for RoomManagerActor {
     type Result = ();
 
     fn handle(&mut self, msg: RoomMessage, ctx: &mut Context<Self>) -> Self::Result {
-        println!("RoomManagerActor.handle {:?}", msg);
         match msg {
             RoomMessage::JoinRoom {
                 ref room_name,
@@ -179,7 +178,6 @@ impl RoomManagerActor {
     }
 
     fn forward(&mut self, room_name: String, msg: RoomMessage) {
-        println!("RoomManagerActor.forward {:?}", msg);
         match self.rooms.get(&room_name) {
             None => println!("RoomManager: User tried to send a message to an unknown room."),
             Some(room) => room.do_send(msg),

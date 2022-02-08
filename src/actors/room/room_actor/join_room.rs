@@ -34,7 +34,7 @@ impl RoomActor {
         let user_id = user.user_id.clone();
         let hashed_password = compute_password(password, password_is_hash);
 
-        if self.user_map.contains_key(&user_id) {
+        if self.in_room(&user_id)  {
             self.user_already_in_room(&recipient, &user_id);
         } else if !(self.hashed_password.eq(&hashed_password)) {
             self.wrong_password(&recipient, &user_id);
@@ -72,14 +72,21 @@ impl RoomActor {
         self.notify_users(user_entered_msg);
 
         let connection_info = ConnectionInfo { user, recipient };
-        self.user_map.insert(user_id.clone(), connection_info);
+        self.active_user_map.insert(user_id.clone(), connection_info);
 
-        let joiner = self.user_map.get(user_id).unwrap().recipient.borrow();
-        let users: Vec<UserData> = self
-            .user_map
+        let joiner = self.active_user_map.get(user_id).unwrap().recipient.borrow();
+        let mut users: Vec<UserData> = self
+            .active_user_map
             .values()
             .map(|conn_info| conn_info.user.clone())
             .collect();
+
+        let mut passive_users: Vec<UserData> = self
+            .passive_user_map
+            .values()
+            .map(|conn_info| conn_info.user.clone())
+            .collect();
+        users.append(&mut passive_users);
 
         let join_msg = ClientResponseMessage::RoomJoined {
             room_name: self.name.clone(),

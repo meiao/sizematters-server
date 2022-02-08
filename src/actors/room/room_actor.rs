@@ -30,7 +30,8 @@ use rand::Rng;
 pub struct RoomActor {
     name: String,
     hashed_password: String,
-    user_map: HashMap<String, ConnectionInfo>,
+    active_user_map: HashMap<String, ConnectionInfo>,
+    passive_user_map: HashMap<String, ConnectionInfo>,
     vote_map: HashMap<String, String>,
     room_manager: Recipient<RoomMessage>,
     voting_over: bool,
@@ -47,12 +48,12 @@ impl RoomActor {
     ) -> RoomActor {
         let hashed_password = compute_password(password, password_is_hash);
 
-        let mut scaleValues = HashMap::new();
+        let mut scale_values = HashMap::new();
 
         //Add here to expand the scales we support.
         //This should be the ONLY place scales need to be specified!
-       scaleValues.insert(String::from("fibonacci"),
-       Scale
+       scale_values.insert(String::from("fibonacci"),
+                           Scale
            {
                name: String::from("fibonacci"),
                displayName: String::from("Fibonacci"),
@@ -70,8 +71,8 @@ impl RoomActor {
            }
         );
 
-       scaleValues.insert(String::from("fistOfFive"),
-       Scale
+       scale_values.insert(String::from("fistOfFive"),
+                           Scale
            {
                name: String::from("fistOfFive"),
                displayName: String::from("FistOfFive"),
@@ -90,11 +91,12 @@ impl RoomActor {
         RoomActor {
             name,
             hashed_password,
-            user_map: HashMap::new(),
+            active_user_map: HashMap::new(),
+            passive_user_map: HashMap::new(),
             vote_map: HashMap::new(),
             room_manager,
             voting_over: false,
-            scale_values: scaleValues,
+            scale_values,
             selected_scale_name: String::from("fibonacci")
         }
     }
@@ -108,7 +110,6 @@ impl Handler<RoomMessage> for RoomActor {
     type Result = ();
 
     fn handle(&mut self, msg: RoomMessage, ctx: &mut Context<Self>) -> Self::Result {
-        println!("RoomActor.forward {:?}", msg);
         match msg {
             RoomMessage::JoinRoom {
                 password,
@@ -132,17 +133,29 @@ impl Handler<RoomMessage> for RoomActor {
 
 impl RoomActor {
     fn user_updated(&mut self, user: UserData) {
-        match self.user_map.get_mut(&user.user_id) {
-            None => println!("RoomActor: Updating user not found in room."),
+
+        let updating_user = user.clone();
+        match self.active_user_map.get_mut(&user.user_id) {
+            None => println!("RoomActor: Updating user not active in room."),
             Some(conn_info) => {
                 conn_info.user = user.clone();
                 self.notify_users(ClientResponseMessage::UserUpdated { user });
             }
         };
+        match self.passive_user_map.get_mut(&updating_user.user_id) {
+            None => println!("RoomActor: Updating user not passive in room."),
+            Some(conn_info) => {
+                conn_info.user = updating_user.clone();
+                self.notify_users(ClientResponseMessage::UserUpdated { user: updating_user });
+            }
+        };
     }
 
     fn notify_users(&self, msg: ClientResponseMessage) {
-        for (user_id, conn_info) in self.user_map.iter() {
+        for (user_id, conn_info) in self.active_user_map.iter() {
+            self.notify_user(user_id, &conn_info.recipient, msg.clone());
+        }
+        for (user_id, conn_info) in self.passive_user_map.iter() {
             self.notify_user(user_id, &conn_info.recipient, msg.clone());
         }
     }
@@ -171,10 +184,10 @@ impl RoomActor {
     }
 
     fn randomize(&self) {
-        let users : Vec<String> = self.user_map.keys().cloned().collect();
+        let users : Vec<String> = self.active_user_map.keys().cloned().collect();
         let mut user_index = 0;
-        if self.user_map.len() > 1 {
-            user_index = rand::thread_rng().gen_range(0..self.user_map.len());
+        if self.active_user_map.len() > 1 {
+            user_index = rand::thread_rng().gen_range(0..self.active_user_map.len());
         }
         let selected_user = users.get(user_index);
         let room_name = self.name.clone();
@@ -188,7 +201,6 @@ impl RoomActor {
     }
     fn change_scale(&mut self, selected_scale_name: String)
     {
-        println!("RoomActor.change_scale, selected_scale {:?}", selected_scale_name);
         let selected_scale = self.scale_values.get(&selected_scale_name);
 
         let room_name = self.name.clone();
@@ -202,28 +214,43 @@ impl RoomActor {
             }
         }
     }
+    /// The heart of active vs passive.  Shuffles users between the active_user_map and the
+    /// passive_user_map per the passed in status.
     fn update_active(&mut self, user_id: String, active: bool)
     {
         let room_name = self.name.clone();
-        match self.user_map.get(&user_id) {
-            None => println!("User not found while updating active status: {}", user_id),
-            Some(mut current_user) => {
-                let new_user = UserData{
-                    user_id: current_user.user.user_id.clone(),
-                    name: current_user.user.name.clone(),
-                    gravatar_id: current_user.user.gravatar_id.clone(),
-                    active: active
-                };
-                let new_conn_info = ConnectionInfo{
-                    user: new_user,
-                    recipient: current_user.recipient.clone()
-                };
-                self.user_map.insert(user_id.clone(), new_conn_info);
-                self.notify_users(ClientResponseMessage::ActiveUpdated { room_name,
-                    user_id: user_id.clone(), active: active
-                });
+        if active
+        {
+            if self.passive_user_map.contains_key(&user_id)
+            {
+                self.active_user_map.insert(String::from(&user_id), self.passive_user_map
+                    .remove(&user_id).unwrap());
             }
         }
+        else
+        {
+            if self.active_user_map.contains_key(&user_id)
+            {
+                self.passive_user_map.insert(String::from(&user_id), self.active_user_map
+                    .remove(&user_id).unwrap());
+
+                // If user has voted, remove vote.
+                self.vote_map.remove(&user_id);
+                self.send_vote_info();
+            }
+        }
+        self.notify_users(ClientResponseMessage::ActiveUpdated { room_name,
+            user_id: user_id.clone(), active: active
+        });
+
+    }
+    fn in_room(
+        &self,
+        user_id: &str
+    ) -> bool
+    {
+        self.active_user_map.contains_key(user_id) ||
+            self.passive_user_map.contains_key(user_id)
     }
 }
 
