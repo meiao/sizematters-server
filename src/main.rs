@@ -1,6 +1,6 @@
 /*
  * SizeMatters - a ticket sizing util
- * Copyright (C) 2020 Andre Onuki
+ * Copyright (C) 2025 Andre Onuki
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -20,7 +20,8 @@ mod actors;
 mod data;
 
 use actix::{Actor, Addr};
-use actix_web::{middleware, web, App, Error, HttpRequest, HttpResponse, HttpServer};
+use actix_web::{middleware::Logger, web, App, Error, HttpRequest, HttpResponse, HttpServer};
+use actix_web::web::Data;
 use actix_web_actors::ws;
 
 use actors::ClientActor;
@@ -39,7 +40,7 @@ async fn ws_index(
     res
 }
 
-#[actix_rt::main]
+#[actix_web::main]
 async fn main() -> std::io::Result<()> {
     std::env::set_var("RUST_LOG", "actix_server=info,actix_web=info");
     env_logger::init();
@@ -48,9 +49,9 @@ async fn main() -> std::io::Result<()> {
 
     HttpServer::new(move || {
         App::new()
-            .data(room_manager.clone())
+            .app_data(Data::new(room_manager.clone()))
             // enable logger
-            .wrap(middleware::Logger::default())
+            .wrap(Logger::default())
             // websocket route
             .service(web::resource("/").route(web::get().to(ws_index)))
     })

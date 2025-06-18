@@ -1,6 +1,6 @@
 /*
  * SizeMatters - a ticket sizing util
- * Copyright (C) 2020 Andre Onuki
+ * Copyright (C) 2025 Andre Onuki
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -200,7 +200,7 @@ impl RoomManagerActor {
         recipient: &Recipient<ClientResponseMessage>,
         msg: ClientResponseMessage,
     ) {
-        if let Err(err) = recipient.do_send(msg) {
+        if let Err(err) = recipient.try_send(msg) {
             println!("RoomManager: Unable to reach ClientActor.\nError: {}", err);
             self.user_left(user_id.to_owned());
         }
