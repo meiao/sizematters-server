@@ -28,12 +28,20 @@ impl RoomActor {
         };
         self.notify_users(msg);
 
-        self.user_map.remove(&user_id);
+        if self.active_user_map.contains_key(&user_id)
+        {
+            self.active_user_map.remove(&user_id);
+        }
+        else if self.passive_user_map.contains_key(&user_id)
+        {
+            self.passive_user_map.remove(&user_id);
+        }
+
         self.vote_map.remove(&user_id);
 
         self.send_vote_info();
 
-        if self.user_map.is_empty() {
+        if self.active_user_map.is_empty() {
             let msg = RoomMessage::RoomClosing {
                 room_name: self.name.clone(),
             };
