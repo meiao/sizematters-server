@@ -1,6 +1,6 @@
 /*
  * SizeMatters - a ticket sizing util
- * Copyright (C) 2020 Andre Onuki
+ * Copyright (C) 2025 Andre Onuki
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -22,6 +22,7 @@ use serde_json::Error;
 use std::time::Duration;
 use std::time::Instant;
 use uuid::Uuid;
+use bytestring::ByteString;
 
 use super::RoomManagerActor;
 use crate::actors::messages::{ClientRequestMessage, ClientResponseMessage, RoomMessage};
@@ -87,7 +88,14 @@ impl StreamHandler<Result<ws::Message, ws::ProtocolError>> for ClientActor {
 }
 
 impl ClientActor {
-    fn text(&mut self, msg: String, ctx: &mut <Self as Actor>::Context) {
+
+    fn text(&mut self, msg: ByteString, ctx: &mut <Self as Actor>::Context) {
+        // println!("WS: {:?}", msg);
+        if msg.len() > 1024 {
+            self::Handler::handle(self, ClientResponseMessage::Error { msg: String::from("Message dropped: max size exceeded.") }, ctx);
+            return;
+        }
+        let msg = msg.to_string();
         let client_msg: Result<ClientRequestMessage, Error> = serde_json::from_str(msg.as_str());
         match client_msg {
             Ok(client_msg) => self.client_msg(client_msg, ctx),

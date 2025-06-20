@@ -1,6 +1,6 @@
 /*
  * SizeMatters - a ticket sizing util
- * Copyright (C) 2020 Andre Onuki
+ * Copyright (C) 2025 Andre Onuki
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -166,14 +166,14 @@ impl RoomActor {
         recipient: &Recipient<ClientResponseMessage>,
         msg: ClientResponseMessage,
     ) {
-        if let Err(err) = recipient.do_send(msg) {
+        if let Err(err) = recipient.try_send(msg) {
             println!("RoomActor: Unable to reach ClientActor.\nError: {}", err);
             self.remove_user(user_id.to_owned());
         }
     }
 
     fn notify_manager(&self, msg: RoomMessage) {
-        if let Err(err) = self.room_manager.do_send(msg) {
+        if let Err(err) = self.room_manager.try_send(msg) {
             println!("RoomActor: Unable to reach room manager.\nError: {}", err);
         }
     }
@@ -186,8 +186,8 @@ impl RoomActor {
     fn randomize(&self) {
         let users : Vec<String> = self.active_user_map.keys().cloned().collect();
         let mut user_index = 0;
-        if self.active_user_map.len() > 1 {
-            user_index = rand::thread_rng().gen_range(0..self.active_user_map.len());
+        if self.user_map.len() > 1 {
+            user_index = rand::rng().random_range(0..self.user_map.len());
         }
         let selected_user = users.get(user_index);
         let room_name = self.name.clone();
