@@ -67,7 +67,7 @@ impl RoomActor {
     }
 
     pub(super) fn new_vote(&mut self, user_id: String) {
-        if(self.in_room( &user_id))
+        if self.in_room( &user_id)
         {
             self.voting_over = false;
             self.vote_map.clear();

@@ -88,9 +88,7 @@ impl StreamHandler<Result<ws::Message, ws::ProtocolError>> for ClientActor {
 }
 
 impl ClientActor {
-
     fn text(&mut self, msg: ByteString, ctx: &mut <Self as Actor>::Context) {
-        // println!("WS: {:?}", msg);
         if msg.len() > 1024 {
             self::Handler::handle(self, ClientResponseMessage::Error { msg: String::from("Message dropped: max size exceeded.") }, ctx);
             return;
@@ -107,7 +105,6 @@ impl ClientActor {
     }
 
     fn client_msg(&mut self, msg: ClientRequestMessage, ctx: &mut <Self as Actor>::Context) {
-        println!("\nWS: {:?}", msg);
         match msg {
             ClientRequestMessage::Register => self.register(ctx),
             ClientRequestMessage::SetName { name } => self.set_name(name, ctx),
@@ -121,7 +118,7 @@ impl ClientActor {
             ClientRequestMessage::Vote { room_name, size } => self.vote(room_name, size, ctx),
             ClientRequestMessage::NewVote { room_name } => self.new_vote(room_name),
             ClientRequestMessage::Randomize { room_name } => self.randomize(room_name),
-            ClientRequestMessage::ChangeScale { room_name, selected_scale_name: selected_scale_name }
+            ClientRequestMessage::ChangeScale { room_name, selected_scale_name }
                 => self.change_scale(room_name, selected_scale_name),
             ClientRequestMessage::UpdateActive { room_name, user_id, active }
                 => self.update_active(room_name, user_id, active)

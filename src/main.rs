@@ -33,10 +33,8 @@ async fn ws_index(
     stream: web::Payload,
     room_manager: web::Data<Addr<RoomManagerActor>>,
 ) -> Result<HttpResponse, Error> {
-    //println!("{:?}", r);
     let room_manager_addr = room_manager.get_ref().clone();
     let res = ws::start(ClientActor::new(room_manager_addr), &r, stream);
-    //println!("{:?}", res);
     res
 }
 

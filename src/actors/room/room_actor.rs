@@ -124,7 +124,7 @@ impl Handler<RoomMessage> for RoomActor {
             RoomMessage::UserUpdated { user } => self.user_updated(user),
             RoomMessage::Randomize { .. } => self.randomize(),
             RoomMessage::ChangeScale { selected_scale_name: selected_scale, .. } => self.change_scale(selected_scale),
-            RoomMessage::UpdateActive { user_id: user_id, active: active, ..  } => self
+            RoomMessage::UpdateActive { user_id, active, ..  } => self
                 .update_active(user_id, active),
             _ => println!("RoomActor: Unhandled message."),
         }
@@ -186,8 +186,8 @@ impl RoomActor {
     fn randomize(&self) {
         let users : Vec<String> = self.active_user_map.keys().cloned().collect();
         let mut user_index = 0;
-        if self.user_map.len() > 1 {
-            user_index = rand::rng().random_range(0..self.user_map.len());
+        if self.active_user_map.len() > 1 {
+            user_index = rand::rng().random_range(0..self.active_user_map.len());
         }
         let selected_user = users.get(user_index);
         let room_name = self.name.clone();
