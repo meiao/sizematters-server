@@ -17,13 +17,14 @@
  */
 
 use crate::data::UserData;
+use crate::data::Scale;
 use actix::prelude::*;
 use serde::{Deserialize, Serialize};
 use std::clone::Clone;
 use std::collections::HashMap;
 
 /// Messages sent from the client to the server.
-#[derive(Message, Deserialize)]
+#[derive(Message, Deserialize, Debug)]
 #[serde(tag = "type", content = "data")]
 #[rtype(result = "()")]
 pub enum ClientRequestMessage {
@@ -44,7 +45,7 @@ pub enum ClientRequestMessage {
     },
     Vote {
         room_name: String,
-        size: u64,
+        size: String,
     },
     NewVote {
         room_name: String,
@@ -52,10 +53,19 @@ pub enum ClientRequestMessage {
     Randomize {
         room_name: String,
     },
+    ChangeScale{
+        room_name: String,
+        selected_scale_name: String,
+    },
+    UpdateActive{
+        room_name: String,
+        user_id: String,
+        active: bool,
+    },
 }
 
 /// messages sent to a RoomActor
-#[derive(Message, Clone)]
+#[derive(Message, Clone, Debug)]
 #[rtype(result = "()")]
 pub enum RoomMessage {
     JoinRoom {
@@ -72,7 +82,7 @@ pub enum RoomMessage {
     Vote {
         room_name: String,
         user_id: String,
-        size: u64,
+        size: String,
     },
     NewVote {
         room_name: String,
@@ -90,10 +100,19 @@ pub enum RoomMessage {
     Randomize {
         room_name: String,
     },
+    ChangeScale{
+        room_name: String,
+        selected_scale_name: String,
+    },
+    UpdateActive{
+        room_name: String,
+        user_id: String,
+        active: bool,
+    },
 }
 
 /// Messages sent to the client
-#[derive(Message, Serialize, Clone)]
+#[derive(Message, Serialize, Clone, Debug)]
 #[serde(tag = "type", content = "data")]
 #[rtype(result = "()")]
 pub enum ClientResponseMessage {
@@ -102,6 +121,8 @@ pub enum ClientResponseMessage {
         hashed_password: String,
         users: Vec<UserData>,
         votes_cast: usize,
+        scale_values: HashMap<String, Scale>,
+        selected_scale_name: String,
     },
     UserJoined {
         room_name: String,
@@ -119,7 +140,7 @@ pub enum ClientResponseMessage {
     },
     OwnVote {
         room_name: String,
-        size: u64,
+        size: String,
     },
     VoteStatus {
         room_name: String,
@@ -127,7 +148,7 @@ pub enum ClientResponseMessage {
     },
     VoteResults {
         room_name: String,
-        votes: HashMap<String, u64>,
+        votes: HashMap<String, String>,
     },
     NewVote {
         room_name: String,
@@ -147,5 +168,14 @@ pub enum ClientResponseMessage {
     CannotJoinMultipleRooms,
     Error {
         msg: String,
+    },
+    ScaleChanged{
+        room_name: String,
+        selected_scale: Scale,
+    },
+    ActiveUpdated{
+        room_name: String,
+        user_id: String,
+        active: bool,
     },
 }

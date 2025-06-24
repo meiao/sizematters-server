@@ -89,7 +89,6 @@ impl StreamHandler<Result<ws::Message, ws::ProtocolError>> for ClientActor {
 
 impl ClientActor {
     fn text(&mut self, msg: ByteString, ctx: &mut <Self as Actor>::Context) {
-        // println!("WS: {:?}", msg);
         if msg.len() > 1024 {
             self::Handler::handle(self, ClientResponseMessage::Error { msg: String::from("Message dropped: max size exceeded.") }, ctx);
             return;
@@ -119,6 +118,10 @@ impl ClientActor {
             ClientRequestMessage::Vote { room_name, size } => self.vote(room_name, size, ctx),
             ClientRequestMessage::NewVote { room_name } => self.new_vote(room_name),
             ClientRequestMessage::Randomize { room_name } => self.randomize(room_name),
+            ClientRequestMessage::ChangeScale { room_name, selected_scale_name }
+                => self.change_scale(room_name, selected_scale_name),
+            ClientRequestMessage::UpdateActive { room_name, user_id, active }
+                => self.update_active(room_name, user_id, active)
         }
     }
 
@@ -129,6 +132,13 @@ impl ClientActor {
     fn set_name(&mut self, name: String, ctx: &mut <Self as Actor>::Context) {
         self.user.name = name;
         self.notify_data_updated(ctx);
+    }
+
+    fn update_active(&mut self,
+                     room_name: String,
+                     user_id: String,
+                     active: bool) {
+        self.room_manager.do_send(RoomMessage::UpdateActive { room_name, user_id, active });
     }
 
     fn set_avatar(&mut self, avatar: String, ctx: &mut <Self as Actor>::Context) {
@@ -171,7 +181,7 @@ impl ClientActor {
         self.room_manager.do_send(msg);
     }
 
-    fn vote(&mut self, room_name: String, size: u64, _ctx: &mut <Self as Actor>::Context) {
+    fn vote(&mut self, room_name: String, size: String, _ctx: &mut <Self as Actor>::Context) {
         let msg = RoomMessage::Vote {
             room_name,
             user_id: self.user.user_id.clone(),
@@ -198,6 +208,13 @@ impl ClientActor {
     fn randomize(&self, room_name: String) {
         let msg = RoomMessage::Randomize {
             room_name,
+        };
+        self.room_manager.do_send(msg);
+    }
+    fn change_scale(&self, room_name: String, selected_scale_name: String) {
+        let msg = RoomMessage::ChangeScale {
+            room_name,
+            selected_scale_name: selected_scale_name,
         };
         self.room_manager.do_send(msg);
     }
