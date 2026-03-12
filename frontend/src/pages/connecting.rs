@@ -56,7 +56,7 @@ pub fn ConnectingPage() -> impl IntoView {
             if !rn2.is_empty() && !pw2.is_empty() {
                 ws::ws_join_room(rn2.clone(), pw2.clone(), true);
             }
-            nav2("/main", Default::default());
+            nav2("/", Default::default());
         }
     });
 

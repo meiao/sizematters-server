@@ -18,6 +18,7 @@
 
 mod app;
 mod ws;
+mod storage;
 mod stores;
 mod pages;
 mod components;

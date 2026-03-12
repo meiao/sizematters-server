@@ -20,7 +20,6 @@ use crate::components::main_menu::MainMenu;
 use crate::components::no_menu::NoMenu;
 use crate::pages::connecting::ConnectingPage;
 use crate::pages::error::ErrorPage;
-use crate::pages::home::HomePage;
 use crate::pages::main_view::MainPage;
 use crate::stores::{RoomStore, UserStore, VoteStore};
 use crate::ws::WsContext;
@@ -51,16 +50,23 @@ pub fn App() -> impl IntoView {
                         <MenuRouter />
                     </nav>
                     <main class="app-content">
-                        <Routes fallback=|| "Not found">
-                            <Route path=path!("/") view=HomePage />
-                            <Route path=path!("/main") view=MainPage />
-                            <Route path=path!("/room/:room_name/:password") view=ConnectingPage />
-                            <Route path=path!("/error/:error_type") view=ErrorPage />
-                        </Routes>
+                        <ContentRouter />
                     </main>
                 </div>
             </div>
         </Router>
+    }
+}
+
+#[component]
+fn ContentRouter() -> impl IntoView {
+    view! {
+        <MainPage />
+        <Routes fallback=|| "Not found">
+            <Route path=path!("/room/:room_name/:password") view=ConnectingPage />
+            <Route path=path!("/error/:error_type") view=ErrorPage />
+            <Route path=path!("/") view=|| () />
+        </Routes>
     }
 }
 

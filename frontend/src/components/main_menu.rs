@@ -17,6 +17,7 @@
  */
 
 use crate::components::dialogs::{PromptDialog, RoomDialog};
+use crate::components::room_list::{leave_all_and_join, RoomList};
 use crate::stores::{RoomStore, UserStore, VoteStore};
 use crate::ws;
 use leptos::prelude::*;
@@ -45,10 +46,6 @@ pub fn MainMenu() -> impl IntoView {
         }).unwrap_or_default()
     });
 
-    let rooms = Memo::new(move |_| {
-        room_store.rooms_signal().get()
-    });
-
     // Register on creation
     ws::ws_register();
 
@@ -57,6 +54,10 @@ pub fn MainMenu() -> impl IntoView {
             <PromptDialog
                 title="What's your name?"
                 show=show_name_dialog
+                initial_value=Signal::derive(move || {
+                    let n = name.get();
+                    if n == "Shirtless Muppet" || n == "not connected" { String::new() } else { n }
+                })
                 on_confirm=Callback::new(move |name: String| {
                     ws::ws_set_name(name);
                 })
@@ -74,8 +75,8 @@ pub fn MainMenu() -> impl IntoView {
             />
             <RoomDialog
                 show=show_room_dialog
-                on_confirm=Callback::new(|(room_name, password): (String, String)| {
-                    ws::ws_join_room(room_name, password, false);
+                on_confirm=Callback::new(move |(room_name, password): (String, String)| {
+                    leave_all_and_join(room_store, vote_store, room_name, password, false);
                 })
             />
 
@@ -124,50 +125,7 @@ pub fn MainMenu() -> impl IntoView {
                 </div>
             </div>
 
-            <div id="menu-rooms">
-                <header>
-                    "Rooms"
-                    <button class="btn btn-icon btn-primary" aria-label="Create or join a room" on:click=move |_| show_room_dialog.set(true)>
-                        <span class="material-icons" aria-hidden="true">"add"</span>
-                    </button>
-                </header>
-                <Show when=move || rooms.get().is_empty()>
-                    <div class="card">
-                        <div class="card-content">
-                            "Yes, the \"+\" over here"
-                        </div>
-                    </div>
-                </Show>
-                <div id="room-list">
-                    <For
-                        each=move || rooms.get()
-                        key=|room| room.room_name.clone()
-                        let:room
-                    >
-                        {
-                            let rn = room.room_name.clone();
-                            let rn2 = room.room_name.clone();
-                            view! {
-                                <div class="card">
-                                    <div class="card-header">
-                                        <div class="card-title">{rn.clone()}</div>
-                                    </div>
-                                    <div class="card-content">
-                                        "Voting: " {room.votes_cast} "/" {room.users.len()}
-                                    </div>
-                                    <div class="card-actions">
-                                        <button class="btn" on:click=move |_| {
-                                            ws::ws_leave_room(rn2.clone());
-                                            room_store.leave_room(&rn2);
-                                            vote_store.leave_room(&rn2);
-                                        }>"Leave"</button>
-                                    </div>
-                                </div>
-                            }
-                        }
-                    </For>
-                </div>
-            </div>
+            <RoomList show_room_dialog=show_room_dialog />
         </div>
     }
 }

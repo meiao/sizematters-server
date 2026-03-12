@@ -35,7 +35,7 @@ pub fn MainPage() -> impl IntoView {
     });
 
     let banner_dismissed = RwSignal::new(false);
-    let rooms = Memo::new(move |_| room_store.rooms_signal().get());
+    let rooms = room_store.rooms_signal();
     let last_error = ws_ctx.last_error();
 
     let dismiss_banner = move |_| {
@@ -78,16 +78,10 @@ pub fn MainPage() -> impl IntoView {
             </Show>
 
             <div id="rooms">
-                <For
-                    each=move || rooms.get()
-                    key=|room| room.room_name.clone()
-                    let:room
-                >
-                    {
-                        let rn = room.room_name.clone();
-                        view! { <Room room_name=rn /> }
-                    }
-                </For>
+                {move || rooms.get().iter().map(|room| {
+                    let rn = room.room_name.clone();
+                    view! { <Room room_name=rn /> }
+                }).collect_view()}
 
                 <Show when=move || rooms.get().is_empty()>
                     <div class="empty-state">

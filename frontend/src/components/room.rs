@@ -85,26 +85,26 @@ pub fn Room(room_name: String) -> impl IntoView {
             <div class="card-header header">
                 <div class="card-title">
                     {room_name_display} " - " {move || room_link.get()}
-                </div>
-                <button
-                    class="btn btn-icon"
-                    style="color: #fff; margin-left: auto;"
-                    title="Copy room link"
-                    aria-label="Copy room link"
-                    on:click=move |_| {
-                        let link = room_link.get();
-                        if let Some(window) = web_sys::window() {
-                            let clipboard = window.navigator().clipboard();
-                            let _ = clipboard.write_text(&link);
-                            link_copied.set(true);
-                            set_timeout(move || link_copied.set(false), std::time::Duration::from_secs(2));
+                    <button
+                        class="btn btn-icon"
+                        style="color: #fff;"
+                        title="Copy room link"
+                        aria-label="Copy room link"
+                        on:click=move |_| {
+                            let link = room_link.get();
+                            if let Some(window) = web_sys::window() {
+                                let clipboard = window.navigator().clipboard();
+                                let _ = clipboard.write_text(&link);
+                                link_copied.set(true);
+                                set_timeout(move || link_copied.set(false), std::time::Duration::from_secs(2));
+                            }
                         }
-                    }
-                >
-                    <span class="material-icons" aria-hidden="true">
-                        {move || if link_copied.get() { "check" } else { "link" }}
-                    </span>
-                </button>
+                    >
+                        <span class="material-icons" aria-hidden="true">
+                            {move || if link_copied.get() { "check" } else { "link" }}
+                        </span>
+                    </button>
+                </div>
             </div>
             <div class="card-content user-space">
                 <For

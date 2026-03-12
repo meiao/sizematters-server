@@ -204,14 +204,11 @@ fn send_message(msg: ClientRequestMessage) {
 
 /// Restore user name and avatar from localStorage after reconnecting.
 fn restore_data() {
-    let storage = web_sys::window().unwrap().local_storage().unwrap();
-    if let Some(storage) = storage {
-        if let Ok(Some(name)) = storage.get_item("name") {
-            send_message(ClientRequestMessage::SetName { name });
-        }
-        if let Ok(Some(avatar)) = storage.get_item("avatar") {
-            send_message(ClientRequestMessage::SetAvatar { avatar });
-        }
+    if let Some(name) = crate::storage::load_name() {
+        send_message(ClientRequestMessage::SetName { name });
+    }
+    if let Some(avatar) = crate::storage::load_avatar() {
+        send_message(ClientRequestMessage::SetAvatar { avatar });
     }
 }
 
@@ -250,6 +247,7 @@ fn process_message(
             users,
             votes_cast,
         } => {
+            crate::storage::save_recent_room(&room_name, &hashed_password);
             let user_ids: Vec<String> = users.iter().map(|u| u.user_id.clone()).collect();
             user_store.room_joined(&users);
             vote_store.room_joined(&room_name, &user_ids, votes_cast);
@@ -321,18 +319,12 @@ pub fn ws_register() {
 }
 
 pub fn ws_set_name(name: String) {
-    let storage = web_sys::window().unwrap().local_storage().unwrap();
-    if let Some(storage) = storage {
-        let _ = storage.set_item("name", &name);
-    }
+    crate::storage::save_name(&name);
     send_message(ClientRequestMessage::SetName { name });
 }
 
 pub fn ws_set_avatar(email: String) {
-    let storage = web_sys::window().unwrap().local_storage().unwrap();
-    if let Some(storage) = storage {
-        let _ = storage.set_item("avatar", &email);
-    }
+    crate::storage::save_avatar(&email);
     send_message(ClientRequestMessage::SetAvatar { avatar: email });
 }
 

@@ -26,9 +26,26 @@ pub fn PromptDialog(
     title: &'static str,
     #[prop(default = &[])] content: &'static [&'static str],
     show: RwSignal<bool>,
+    #[prop(optional, into)] initial_value: Option<Signal<String>>,
     on_confirm: Callback<String>,
 ) -> impl IntoView {
     let input_value = RwSignal::new(String::new());
+    let input_ref: NodeRef<leptos::html::Input> = NodeRef::new();
+
+    // Populate initial value and focus when dialog opens
+    Effect::new(move |_| {
+        if show.get() {
+            if let Some(iv) = initial_value {
+                input_value.set(iv.get_untracked());
+            }
+            request_animation_frame(move || {
+                if let Some(el) = input_ref.get() {
+                    let _ = el.focus();
+                    let _ = el.select();
+                }
+            });
+        }
+    });
 
     let on_submit = move || {
         let val = input_value.get();
@@ -62,6 +79,7 @@ pub fn PromptDialog(
                             type="text"
                             class="dialog-input"
                             aria-labelledby="prompt-dialog-title"
+                            node_ref=input_ref
                             prop:value=move || input_value.get()
                             on:input=move |e| {
                                 let target: HtmlInputElement = event_target(&e);
@@ -92,6 +110,17 @@ pub fn RoomDialog(
 ) -> impl IntoView {
     let room_name = RwSignal::new(String::new());
     let room_password = RwSignal::new(String::new());
+    let room_name_ref: NodeRef<leptos::html::Input> = NodeRef::new();
+
+    Effect::new(move |_| {
+        if show.get() {
+            request_animation_frame(move || {
+                if let Some(el) = room_name_ref.get() {
+                    let _ = el.focus();
+                }
+            });
+        }
+    });
 
     let on_submit = move || {
         let name = room_name.get();
@@ -134,6 +163,7 @@ pub fn RoomDialog(
                                 id="room-name-input"
                                 type="text"
                                 class="dialog-input"
+                                node_ref=room_name_ref
                                 prop:value=move || room_name.get()
                                 on:input=move |e| {
                                     let target: HtmlInputElement = event_target(&e);

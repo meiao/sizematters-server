@@ -19,6 +19,7 @@
 pub mod gravatar;
 pub mod user_card;
 pub mod room;
+pub mod room_list;
 pub mod main_menu;
 pub mod no_menu;
 pub mod dialogs;
