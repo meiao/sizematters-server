@@ -54,6 +54,13 @@ impl WsContext {
         self.connected.get()
     }
 
+    /// Whether the user has explicitly initiated a connection (via `connect()`).
+    /// Stable across the sidebar swapping between `NoMenu` and `MainMenu`, so it's
+    /// safe to react to from a component that outlives that swap.
+    pub fn is_initiated(&self) -> bool {
+        self.initiated.get()
+    }
+
     pub fn last_error(&self) -> ReadSignal<Option<String>> {
         self.last_error.read_only()
     }

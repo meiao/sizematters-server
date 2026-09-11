@@ -26,6 +26,7 @@ use crate::stores::{RoomStore, UserStore, VoteStore};
 use crate::ws::WsContext;
 use leptos::prelude::*;
 use leptos_router::components::{Route, Router, Routes};
+use leptos_router::hooks::use_navigate;
 use leptos_router::path;
 
 #[component]
@@ -67,8 +68,40 @@ pub fn App() -> impl IntoView {
 #[component]
 fn MenuRouter() -> impl IntoView {
     let ws_ctx = expect_context::<WsContext>();
+    let navigate = use_navigate();
 
     let connected = Memo::new(move |_| ws_ctx.is_connected());
+
+    // Navigate to /main once the connection succeeds. This lives here, in a
+    // component that stays mounted regardless of connection state, rather than
+    // inside `NoMenu` — `NoMenu` gets unmounted by the `<Show>` below the
+    // instant `connected` flips true, which raced with (and could silently
+    // drop) an effect inside `NoMenu` trying to react to that same flip.
+    let nav = navigate.clone();
+    Effect::new(move |_| {
+        if ws_ctx.is_initiated() && connected.get() {
+            nav("/main", Default::default());
+        }
+    });
+
+    // Timeout fallback: if a connection attempt doesn't succeed within 5s,
+    // send the user to the error page.
+    let nav2 = navigate.clone();
+    Effect::new(move |prev: Option<bool>| {
+        let initiated = ws_ctx.is_initiated();
+        if initiated && prev != Some(true) {
+            let nav = nav2.clone();
+            set_timeout(
+                move || {
+                    if !ws_ctx.is_connected() {
+                        nav("/error/connection", Default::default());
+                    }
+                },
+                std::time::Duration::from_secs(5),
+            );
+        }
+        initiated
+    });
 
     view! {
         <Show
