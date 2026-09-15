@@ -14,6 +14,10 @@ on:
         required: false
         default: 'main'
 
+permissions:
+  contents: read
+  packages: read
+
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
