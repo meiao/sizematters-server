@@ -18,52 +18,27 @@
 
 use crate::ws::WsContext;
 use leptos::prelude::*;
-use leptos_router::hooks::use_navigate;
 
 /// Shown in the sidebar when not connected. Clicking "Enter" initiates the WebSocket connection.
+///
+/// The actual "navigate to /main once connected" and "error on timeout" logic
+/// lives in `MenuRouter` (app.rs), which stays mounted across the swap from
+/// `NoMenu` to `MainMenu` — this component gets unmounted the instant the
+/// connection succeeds, so it must not be the thing reacting to that event.
 #[component]
 pub fn NoMenu() -> impl IntoView {
     let ws = expect_context::<WsContext>();
-    let navigate = use_navigate();
-    let connecting = RwSignal::new(false);
-
-    // Reactively navigate once connection succeeds
-    let nav = navigate.clone();
-    Effect::new(move |_| {
-        if connecting.get() && ws.is_connected() {
-            nav("/main", Default::default());
-        }
-    });
-
-    // Timeout fallback: navigate to error if not connected after 5 seconds
-    let nav2 = navigate.clone();
-    Effect::new(move |prev: Option<bool>| {
-        let is_connecting = connecting.get();
-        if is_connecting && prev != Some(true) {
-            let nav = nav2.clone();
-            set_timeout(
-                move || {
-                    // Only navigate to error if still not connected
-                    if !ws.is_connected() {
-                        nav("/error/connection", Default::default());
-                    }
-                },
-                std::time::Duration::from_secs(5),
-            );
-        }
-        is_connecting
-    });
+    let initiated = Memo::new(move |_| ws.is_initiated());
 
     let on_enter = move |_| {
-        connecting.set(true);
         ws.connect();
     };
 
     view! {
-        <Show when=move || connecting.get()>
+        <Show when=move || initiated.get()>
             <p>"Connecting..."</p>
         </Show>
-        <Show when=move || !connecting.get()>
+        <Show when=move || !initiated.get()>
             <button class="btn btn-raised btn-primary" on:click=on_enter>
                 "Enter"
             </button>
