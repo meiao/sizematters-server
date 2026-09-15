@@ -9,6 +9,10 @@ on:
         description: 'Host port to deploy this instance on'
         required: false
         default: '8080'
+      ref:
+        description: 'Branch, tag or hash to use'
+        required: false
+        default: 'main'
 
 jobs:
   build-and-deploy:
@@ -16,6 +20,8 @@ jobs:
 
     steps:
       - uses: actions/checkout@4
+        with:
+          ref: ${{ inputs.ref }}
 
       - name: Resolve deploy variables
         run: |
