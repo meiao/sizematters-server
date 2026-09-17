@@ -17,10 +17,10 @@
  */
 
 mod app;
-mod ws;
-mod stores;
-mod pages;
 mod components;
+mod pages;
+mod stores;
+mod ws;
 
 use wasm_bindgen::prelude::*;
 

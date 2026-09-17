@@ -16,9 +16,9 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-use sizematters_shared::{ClientRequestMessage, ClientResponseMessage};
 use crate::stores::{RoomStore, UserStore, VoteStore};
 use leptos::prelude::*;
+use sizematters_shared::{ClientRequestMessage, ClientResponseMessage};
 use wasm_bindgen::prelude::*;
 use web_sys::WebSocket;
 
@@ -89,7 +89,8 @@ impl WsContext {
             Ok(s) => s,
             Err(err) => {
                 log::error!("Failed to create WebSocket: {:?}", err);
-                self.last_error.set(Some("Failed to connect to server.".to_string()));
+                self.last_error
+                    .set(Some("Failed to connect to server.".to_string()));
                 schedule_reconnect(*self);
                 return;
             }
@@ -120,14 +121,17 @@ impl WsContext {
         onopen.forget();
 
         // onmessage
-        let onmessage = Closure::<dyn Fn(web_sys::MessageEvent)>::new(move |e: web_sys::MessageEvent| {
-            if let Some(text) = e.data().as_string() {
-                match serde_json::from_str::<ClientResponseMessage>(&text) {
-                    Ok(msg) => process_message(msg, room_store, user_store, vote_store, last_error),
-                    Err(err) => log::warn!("Failed to parse message: {}", err),
+        let onmessage =
+            Closure::<dyn Fn(web_sys::MessageEvent)>::new(move |e: web_sys::MessageEvent| {
+                if let Some(text) = e.data().as_string() {
+                    match serde_json::from_str::<ClientResponseMessage>(&text) {
+                        Ok(msg) => {
+                            process_message(msg, room_store, user_store, vote_store, last_error)
+                        }
+                        Err(err) => log::warn!("Failed to parse message: {}", err),
+                    }
                 }
-            }
-        });
+            });
         socket.set_onmessage(Some(onmessage.as_ref().unchecked_ref()));
         onmessage.forget();
 
@@ -174,7 +178,9 @@ fn schedule_reconnect(ctx: WsContext) {
 
     if attempts >= MAX_RECONNECT_ATTEMPTS {
         log::warn!("Max reconnection attempts reached");
-        ctx.last_error.set(Some("Connection lost. Please refresh the page.".to_string()));
+        ctx.last_error.set(Some(
+            "Connection lost. Please refresh the page.".to_string(),
+        ));
         return;
     }
 
@@ -224,7 +230,8 @@ fn restore_data() {
 
 /// Announce the selected user via speech synthesis.
 fn speak_selected_user(user_store: &UserStore, selected_user_id: &str) {
-    let user_name = user_store.user_untracked(selected_user_id)
+    let user_name = user_store
+        .user_untracked(selected_user_id)
         .map(|u| u.name.clone())
         .unwrap_or_else(|| "someone".to_string());
     let text = format!("It is {}", user_name);
@@ -289,13 +296,19 @@ fn process_message(
             room_store.new_vote(&room_name);
             vote_store.new_vote(&room_name);
         }
-        ClientResponseMessage::Randomized { room_name, selected_user_id } => {
+        ClientResponseMessage::Randomized {
+            room_name,
+            selected_user_id,
+        } => {
             room_store.randomized(&room_name, &selected_user_id);
             speak_selected_user(&user_store, &selected_user_id);
         }
         // Surface server errors to the user
         ClientResponseMessage::InvalidRoomName => {
-            last_error.set(Some("Invalid room name. Use 1-50 characters: letters, digits, hyphens, underscores.".to_string()));
+            last_error.set(Some(
+                "Invalid room name. Use 1-50 characters: letters, digits, hyphens, underscores."
+                    .to_string(),
+            ));
         }
         ClientResponseMessage::WrongPassword { room_name } => {
             last_error.set(Some(format!("Wrong password for room '{}'.", room_name)));

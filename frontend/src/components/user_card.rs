@@ -35,24 +35,20 @@ pub fn UserCard(user_id: String, room_name: String) -> impl IntoView {
     let rn2 = room_name.clone();
     let user_vote = Memo::new(move |_| {
         let votes = vote_store.votes_signal().get();
-        votes
-            .get(&rn2)
-            .and_then(|rv| rv.get(&uid2))
-            .cloned()
+        votes.get(&rn2).and_then(|rv| rv.get(&uid2)).cloned()
     });
 
-    let name = move || {
-        user_data.get().map(|u| u.name.clone()).unwrap_or_default()
-    };
+    let name = move || user_data.get().map(|u| u.name.clone()).unwrap_or_default();
 
     // Memo for gravatar_id so the <img> only re-creates when it actually changes.
     let gravatar_id = Memo::new(move |_| {
-        user_data.get().map(|u| u.gravatar_id.clone()).unwrap_or_default()
+        user_data
+            .get()
+            .map(|u| u.gravatar_id.clone())
+            .unwrap_or_default()
     });
 
-    let has_voted = move || {
-        user_vote.get().map(|v| v.has_voted).unwrap_or(false)
-    };
+    let has_voted = move || user_vote.get().map(|v| v.has_voted).unwrap_or(false);
 
     let vote_value = move || {
         user_vote
@@ -115,5 +111,8 @@ fn calculate_order(name: &str) -> String {
             }
         })
         .collect();
-    padded.iter().map(|n| format!("{:02}", n)).collect::<String>()
+    padded
+        .iter()
+        .map(|n| format!("{:02}", n))
+        .collect::<String>()
 }

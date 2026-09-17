@@ -52,11 +52,9 @@ async fn main() -> std::io::Result<()> {
             .service(
                 actix_files::Files::new("/", "./dist")
                     .index_file("index.html")
-                    .default_handler(
-                        web::to(|| async {
-                            actix_files::NamedFile::open_async("./dist/index.html").await
-                        }),
-                    ),
+                    .default_handler(web::to(|| async {
+                        actix_files::NamedFile::open("./dist/index.html")
+                    })),
             )
     })
     .bind("0.0.0.0:8080")?

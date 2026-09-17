@@ -34,20 +34,22 @@ pub fn MainMenu() -> impl IntoView {
     let name = Memo::new(move |_| {
         let own_id = user_store.own_user_id();
         let users = user_store.user_signal().get();
-        users.get(&own_id).map(|u| u.name.clone()).unwrap_or("not connected".to_string())
+        users
+            .get(&own_id)
+            .map(|u| u.name.clone())
+            .unwrap_or("not connected".to_string())
     });
 
     let img_url = Memo::new(move |_| {
         let own_id = user_store.own_user_id();
         let users = user_store.user_signal().get();
-        users.get(&own_id).map(|u| {
-            format!("https://www.gravatar.com/avatar/{}?d=retro", u.gravatar_id)
-        }).unwrap_or_default()
+        users
+            .get(&own_id)
+            .map(|u| format!("https://www.gravatar.com/avatar/{}?d=retro", u.gravatar_id))
+            .unwrap_or_default()
     });
 
-    let rooms = Memo::new(move |_| {
-        room_store.rooms_signal().get()
-    });
+    let rooms = Memo::new(move |_| room_store.rooms_signal().get());
 
     // Register on creation
     ws::ws_register();

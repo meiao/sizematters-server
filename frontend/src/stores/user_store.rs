@@ -16,8 +16,8 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-use sizematters_shared::UserData;
 use leptos::prelude::*;
+use sizematters_shared::UserData;
 use std::collections::HashMap;
 
 /// Reactive store for user data (own identity + all known users).

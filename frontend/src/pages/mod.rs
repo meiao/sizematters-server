@@ -16,7 +16,7 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-pub mod home;
-pub mod main_view;
 pub mod connecting;
 pub mod error;
+pub mod home;
+pub mod main_view;
