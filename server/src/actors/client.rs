@@ -94,7 +94,13 @@ impl StreamHandler<Result<ws::Message, ws::ProtocolError>> for ClientActor {
 impl ClientActor {
     fn text(&mut self, msg: String, ctx: &mut <Self as Actor>::Context) {
         if msg.len() > 1024 {
-            self::Handler::handle(self, ClientResponseMessage::Error { msg: String::from("Message dropped: max size exceeded.") }, ctx);
+            self::Handler::handle(
+                self,
+                ClientResponseMessage::Error {
+                    msg: String::from("Message dropped: max size exceeded."),
+                },
+                ctx,
+            );
             return;
         }
         let client_msg: Result<ClientRequestMessage, Error> = serde_json::from_str(msg.as_str());

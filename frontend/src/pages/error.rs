@@ -23,9 +23,7 @@ use leptos_router::hooks::use_params_map;
 pub fn ErrorPage() -> impl IntoView {
     let params = use_params_map();
 
-    let error_type = Memo::new(move |_| {
-        params.get().get("error_type").unwrap_or_default()
-    });
+    let error_type = Memo::new(move |_| params.get().get("error_type").unwrap_or_default());
 
     view! {
         <div class="error">

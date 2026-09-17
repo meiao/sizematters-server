@@ -18,10 +18,10 @@
 
 use crate::actors::messages::{ClientResponseMessage, RoomMessage};
 use crate::actors::room::RoomActor;
-use sizematters_shared::UserData;
 use actix::prelude::*;
 use actix::Actor;
 use regex::Regex;
+use sizematters_shared::UserData;
 use std::collections::HashMap;
 use std::sync::Arc;
 

@@ -21,11 +21,11 @@ mod leave_room;
 mod vote;
 
 use crate::actors::messages::{ClientResponseMessage, RoomMessage};
-use sizematters_shared::UserData;
 use actix::{Actor, Context, Handler, Recipient};
+use rand::RngExt;
+use sizematters_shared::UserData;
 use std::collections::HashMap;
 use std::sync::Arc;
-use rand::RngExt;
 
 pub struct RoomActor {
     name: Arc<String>,
@@ -117,12 +117,14 @@ impl RoomActor {
     }
 
     fn remove_user(&self, user_id: String) {
-        let msg = RoomMessage::UserLeft { user_id: Arc::new(user_id) };
+        let msg = RoomMessage::UserLeft {
+            user_id: Arc::new(user_id),
+        };
         self.notify_manager(msg);
     }
 
     fn randomize(&self) {
-        let users : Vec<Arc<String>> = self.user_map.keys().cloned().collect();
+        let users: Vec<Arc<String>> = self.user_map.keys().cloned().collect();
         let mut user_index = 0;
         if self.user_map.len() > 1 {
             user_index = rand::rng().random_range(0..self.user_map.len());
@@ -133,7 +135,10 @@ impl RoomActor {
             None => println!("RoomActor: User not found in room."),
             Some(user_id) => {
                 let selected_user_id = (**user_id).clone();
-                self.notify_users(ClientResponseMessage::Randomized { room_name, selected_user_id });
+                self.notify_users(ClientResponseMessage::Randomized {
+                    room_name,
+                    selected_user_id,
+                });
             }
         }
     }

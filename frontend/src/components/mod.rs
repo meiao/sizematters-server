@@ -16,9 +16,9 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
+pub mod dialogs;
 pub mod gravatar;
-pub mod user_card;
-pub mod room;
 pub mod main_menu;
 pub mod no_menu;
-pub mod dialogs;
+pub mod room;
+pub mod user_card;

@@ -37,18 +37,17 @@ pub fn Room(room_name: String) -> impl IntoView {
     });
 
     let rn2 = room_name.clone();
-    let voting_done = Memo::new(move |_| {
-        vote_store.is_voting_done(&rn2)
-    });
+    let voting_done = Memo::new(move |_| vote_store.is_voting_done(&rn2));
 
     let rn3 = room_name.clone();
     let users = move || {
-        room_status.get().map(|r| r.users.clone()).unwrap_or_default()
+        room_status
+            .get()
+            .map(|r| r.users.clone())
+            .unwrap_or_default()
     };
 
-    let selected_user = move || {
-        room_status.get().and_then(|r| r.selected_user.clone())
-    };
+    let selected_user = move || room_status.get().and_then(|r| r.selected_user.clone());
 
     let rn5 = room_name.clone();
     let own_vote_value = Memo::new(move |_| {
@@ -69,7 +68,9 @@ pub fn Room(room_name: String) -> impl IntoView {
 
     let rn_link = room_name.clone();
     let room_link = Memo::new(move |_| {
-        let hp = room_store.rooms_signal().get()
+        let hp = room_store
+            .rooms_signal()
+            .get()
             .iter()
             .find(|r| r.room_name == rn_link)
             .map(|r| r.hashed_password.clone())

@@ -19,8 +19,8 @@
 use crate::actors::messages::ClientResponseMessage;
 use crate::actors::room::room_actor::{compute_password, ConnectionInfo};
 use crate::actors::room::RoomActor;
-use sizematters_shared::UserData;
 use actix::Recipient;
+use sizematters_shared::UserData;
 use std::borrow::Borrow;
 use std::sync::Arc;
 
@@ -73,7 +73,8 @@ impl RoomActor {
         self.notify_users(user_entered_msg);
 
         let connection_info = ConnectionInfo { user, recipient };
-        self.user_map.insert(Arc::new(user_id.clone()), connection_info);
+        self.user_map
+            .insert(Arc::new(user_id.clone()), connection_info);
 
         let joiner = self.user_map.get(user_id).unwrap().recipient.borrow();
         let users: Vec<UserData> = self

@@ -86,10 +86,7 @@ pub fn PromptDialog(
 
 /// Modal dialog for creating/joining a room with name and password fields.
 #[component]
-pub fn RoomDialog(
-    show: RwSignal<bool>,
-    on_confirm: Callback<(String, String)>,
-) -> impl IntoView {
+pub fn RoomDialog(show: RwSignal<bool>, on_confirm: Callback<(String, String)>) -> impl IntoView {
     let room_name = RwSignal::new(String::new());
     let room_password = RwSignal::new(String::new());
 

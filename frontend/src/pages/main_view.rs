@@ -30,7 +30,10 @@ pub fn MainPage() -> impl IntoView {
     let is_default_name = Memo::new(move |_| {
         let own_id = user_store.own_user_id();
         user_store.user_signal().with(|users| {
-            users.get(&own_id).map(|u| u.name == "Shirtless Muppet").unwrap_or(false)
+            users
+                .get(&own_id)
+                .map(|u| u.name == "Shirtless Muppet")
+                .unwrap_or(false)
         })
     });
 

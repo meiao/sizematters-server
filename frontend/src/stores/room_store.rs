@@ -16,8 +16,8 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-use sizematters_shared::UserData;
 use leptos::prelude::*;
+use sizematters_shared::UserData;
 use std::collections::HashMap;
 
 #[derive(Clone, Debug, PartialEq)]
@@ -47,7 +47,13 @@ impl RoomStore {
         self.rooms
     }
 
-    pub fn room_joined(&self, room_name: String, hashed_password: String, users: Vec<UserData>, votes_cast: usize) {
+    pub fn room_joined(
+        &self,
+        room_name: String,
+        hashed_password: String,
+        users: Vec<UserData>,
+        votes_cast: usize,
+    ) {
         self.rooms.update(|rooms| {
             if !rooms.iter().any(|r| r.room_name == room_name) {
                 rooms.push(RoomStatus {
