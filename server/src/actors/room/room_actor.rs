@@ -25,7 +25,7 @@ use sizematters_shared::UserData;
 use actix::{Actor, Context, Handler, Recipient};
 use std::collections::HashMap;
 use std::sync::Arc;
-use rand::Rng;
+use rand::RngExt;
 
 pub struct RoomActor {
     name: Arc<String>,

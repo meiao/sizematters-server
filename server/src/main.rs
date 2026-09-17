@@ -54,7 +54,7 @@ async fn main() -> std::io::Result<()> {
                     .index_file("index.html")
                     .default_handler(
                         web::to(|| async {
-                            actix_files::NamedFile::open_async("./dist/index.html").await
+                            actix_files::NamedFile::open("./dist/index.html")
                         }),
                     ),
             )
