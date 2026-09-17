@@ -19,6 +19,7 @@
 use actix::prelude::*;
 use actix_web_actors::ws;
 use serde_json::Error;
+use std::sync::Arc;
 use std::time::Duration;
 use std::time::Instant;
 use uuid::Uuid;
@@ -155,8 +156,8 @@ impl ClientActor {
         let user = self.user.clone();
         let recipient = ctx.address().recipient();
         let msg = RoomMessage::JoinRoom {
-            room_name,
-            password,
+            room_name: Arc::new(room_name),
+            password: Arc::new(password),
             password_is_hash,
             user,
             recipient,
@@ -166,16 +167,16 @@ impl ClientActor {
 
     fn leave_room(&mut self, room_name: String, _ctx: &mut <Self as Actor>::Context) {
         let msg = RoomMessage::LeaveRoom {
-            user_id: self.user.user_id.clone(),
-            room_name,
+            user_id: Arc::new(self.user.user_id.clone()),
+            room_name: Arc::new(room_name),
         };
         self.room_manager.do_send(msg);
     }
 
     fn vote(&mut self, room_name: String, size: u64, _ctx: &mut <Self as Actor>::Context) {
         let msg = RoomMessage::Vote {
-            room_name,
-            user_id: self.user.user_id.clone(),
+            room_name: Arc::new(room_name),
+            user_id: Arc::new(self.user.user_id.clone()),
             size,
         };
         self.room_manager.do_send(msg);
@@ -183,22 +184,22 @@ impl ClientActor {
 
     fn new_vote(&self, room_name: String) {
         let msg = RoomMessage::NewVote {
-            room_name,
-            user_id: self.user.user_id.clone(),
+            room_name: Arc::new(room_name),
+            user_id: Arc::new(self.user.user_id.clone()),
         };
         self.room_manager.do_send(msg);
     }
 
     fn user_left(&mut self) {
         let msg = RoomMessage::UserLeft {
-            user_id: self.user.user_id.clone(),
+            user_id: Arc::new(self.user.user_id.clone()),
         };
         self.room_manager.do_send(msg);
     }
 
     fn randomize(&self, room_name: String) {
         let msg = RoomMessage::Randomize {
-            room_name,
+            room_name: Arc::new(room_name),
         };
         self.room_manager.do_send(msg);
     }

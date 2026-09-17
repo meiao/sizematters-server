@@ -20,41 +20,42 @@
 
  use actix::prelude::*;
  use std::clone::Clone;
- 
+ use std::sync::Arc;
+
  /// messages sent to a RoomActor
  #[derive(Message, Clone)]
  #[rtype(result = "()")]
  pub enum RoomMessage {
      JoinRoom {
-         room_name: String,
-         password: String,
+         room_name: Arc<String>,
+         password: Arc<String>,
          password_is_hash: bool,
          user: UserData,
          recipient: Recipient<ClientResponseMessage>,
      },
      LeaveRoom {
-         room_name: String,
-         user_id: String,
+         room_name: Arc<String>,
+         user_id: Arc<String>,
      },
      Vote {
-         room_name: String,
-         user_id: String,
+         room_name: Arc<String>,
+         user_id: Arc<String>,
          size: u64,
      },
      NewVote {
-         room_name: String,
-         user_id: String,
+         room_name: Arc<String>,
+         user_id: Arc<String>,
      },
      UserUpdated {
          user: UserData,
      },
      UserLeft {
-         user_id: String,
+         user_id: Arc<String>,
      },
      RoomClosing {
-         room_name: String,
+         room_name: Arc<String>,
      },
      Randomize {
-         room_name: String,
+         room_name: Arc<String>,
      },
  }
