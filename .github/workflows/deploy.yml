@@ -8,7 +8,7 @@ on:
       port:
         description: 'Host port to deploy this instance on'
         required: false
-        default: '8080'
+        default: '8081'
       ref:
         description: 'Branch, tag or hash to use'
         required: false
@@ -25,11 +25,11 @@ jobs:
     steps:
       - uses: actions/checkout@v7
         with:
-          ref: ${{ inputs.ref }}
+          ref: ${{ inputs.ref || 'main'}}
 
       - name: Resolve deploy variables
         run: |
-          PORT="${{ github.event.inputs.port || '8080' }}"
+          PORT="${{ github.event.inputs.port || '8081' }}"
           echo "PORT=$PORT" >> "$GITHUB_ENV"
           echo "IMAGE_NAME=sizematters-server-$PORT" >> "$GITHUB_ENV"
           echo "CONTAINER_NAME=sizematters-server-$PORT" >> "$GITHUB_ENV"
