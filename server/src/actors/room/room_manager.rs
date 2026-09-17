@@ -23,11 +23,12 @@ use actix::prelude::*;
 use actix::Actor;
 use regex::Regex;
 use std::collections::HashMap;
+use std::sync::Arc;
 
 /// Room manager. This is an actor that knows about all the created rooms and where each user is.
 pub struct RoomManagerActor {
-    rooms: HashMap<String, Addr<RoomActor>>,
-    user_room_map: HashMap<String, String>,
+    rooms: HashMap<Arc<String>, Addr<RoomActor>>,
+    user_room_map: HashMap<Arc<String>, Arc<String>>,
     room_name_validator: Regex,
 }
 
@@ -83,8 +84,8 @@ impl Handler<RoomMessage> for RoomManagerActor {
 impl RoomManagerActor {
     fn join_room(
         &mut self,
-        room_name: String,
-        password: String,
+        room_name: Arc<String>,
+        password: Arc<String>,
         password_is_hash: bool,
         user_id: String,
         recipient: Recipient<ClientResponseMessage>,
@@ -103,8 +104,8 @@ impl RoomManagerActor {
 
     fn create_room(
         &mut self,
-        room_name: String,
-        password: String,
+        room_name: Arc<String>,
+        password: Arc<String>,
         password_is_hash: bool,
         ctx: &mut Context<Self>,
     ) {
@@ -116,7 +117,7 @@ impl RoomManagerActor {
 
     fn do_join_room(
         &mut self,
-        room_name: String,
+        room_name: Arc<String>,
         user_id: String,
         recipient: Recipient<ClientResponseMessage>,
         msg: RoomMessage,
@@ -125,7 +126,7 @@ impl RoomManagerActor {
             None => {
                 let room = self.rooms.get(&room_name).unwrap();
                 room.do_send(msg);
-                self.user_room_map.insert(user_id, room_name);
+                self.user_room_map.insert(Arc::new(user_id), room_name);
             }
             Some(_) => {
                 println!("RoomManager: User trying to join a second room.");
@@ -138,7 +139,7 @@ impl RoomManagerActor {
         }
     }
 
-    fn leave_room(&mut self, user_id: String, room_name: String) {
+    fn leave_room(&mut self, user_id: Arc<String>, room_name: Arc<String>) {
         match self.user_room_map.get_mut(&user_id) {
             None => println!(
                 "RoomManager: {} tried to exit {} which they is not into.",
@@ -158,7 +159,7 @@ impl RoomManagerActor {
         }
     }
 
-    fn user_left(&mut self, user_id: String) {
+    fn user_left(&mut self, user_id: Arc<String>) {
         let room_name = self.user_room_map.remove(&user_id);
         match room_name {
             None => println!("RoomManager: User left, but no record of his rooms exists."),
@@ -176,18 +177,18 @@ impl RoomManagerActor {
         }
     }
 
-    fn forward(&mut self, room_name: String, msg: RoomMessage) {
+    fn forward(&mut self, room_name: Arc<String>, msg: RoomMessage) {
         match self.rooms.get(&room_name) {
             None => println!("RoomManager: User tried to send a message to an unknown room."),
             Some(room) => room.do_send(msg),
         }
     }
 
-    fn room_closing(&mut self, room_name: String) {
+    fn room_closing(&mut self, room_name: Arc<String>) {
         self.rooms.remove(&room_name);
     }
 
-    fn notify_room(&self, room_name: &String, msg: RoomMessage) {
+    fn notify_room(&self, room_name: &Arc<String>, msg: RoomMessage) {
         let room = self.rooms.get(room_name);
         match room {
             None => println!("RoomManager: Unable to find room to send message to"),
@@ -203,7 +204,7 @@ impl RoomManagerActor {
     ) {
         if let Err(err) = recipient.try_send(msg) {
             println!("RoomManager: Unable to reach ClientActor.\nError: {}", err);
-            self.user_left(user_id.to_owned());
+            self.user_left(Arc::new(user_id.to_owned()));
         }
     }
 }

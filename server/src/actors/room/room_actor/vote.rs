@@ -19,9 +19,10 @@
 use crate::actors::messages::ClientResponseMessage;
 use crate::actors::room::RoomActor;
 use std::collections::HashMap;
+use std::sync::Arc;
 
 impl RoomActor {
-    pub(super) fn vote(&mut self, user_id: String, size: u64) {
+    pub(super) fn vote(&mut self, user_id: Arc<String>, size: u64) {
         if self.voting_over() {
             match self.user_map.get(&user_id) {
                 None => println!("RoomActor: User tried to cast vote in a room he is not in."),
@@ -34,7 +35,7 @@ impl RoomActor {
             match self.user_map.get(&user_id) {
                 None => println!("RoomActor: User tried to cast vote in a room he is not in."),
                 Some(user) => {
-                    let room_name = self.name.clone();
+                    let room_name = (*self.name).clone();
                     let msg = ClientResponseMessage::OwnVote { room_name, size };
                     self.notify_user(&user.user.user_id, &user.recipient, msg);
                 }
@@ -50,23 +51,27 @@ impl RoomActor {
     }
 
     pub(super) fn send_vote_info(&self) {
-        let room_name = self.name.clone();
+        let room_name = (*self.name).clone();
         if self.voting_over() {
-            let votes = self.vote_map.clone();
+            let votes: HashMap<String, u64> = self
+                .vote_map
+                .iter()
+                .map(|(user_id, size)| ((**user_id).clone(), *size))
+                .collect();
             let msg = ClientResponseMessage::VoteResults { room_name, votes };
             self.notify_users(msg);
         } else {
             let mut votes = HashMap::new();
             for user_id in self.user_map.keys() {
                 let has_voted = self.vote_map.contains_key(user_id);
-                votes.insert(user_id.to_owned(), has_voted);
+                votes.insert((**user_id).clone(), has_voted);
             }
             let msg = ClientResponseMessage::VoteStatus { room_name, votes };
             self.notify_users(msg);
         }
     }
 
-    pub(super) fn new_vote(&mut self, user_id: String) {
+    pub(super) fn new_vote(&mut self, user_id: Arc<String>) {
         if !self.user_map.contains_key(&user_id) {
             println!("RoomActor: User tried to request new vote in a room they is not in.");
             return;
@@ -76,7 +81,7 @@ impl RoomActor {
         self.vote_map.clear();
 
         self.notify_users(ClientResponseMessage::NewVote {
-            room_name: self.name.clone(),
+            room_name: (*self.name).clone(),
         });
     }
 

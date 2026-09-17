@@ -22,11 +22,12 @@ use crate::actors::room::RoomActor;
 use sizematters_shared::UserData;
 use actix::Recipient;
 use std::borrow::Borrow;
+use std::sync::Arc;
 
 impl RoomActor {
     pub(super) fn join_room(
         &mut self,
-        password: String,
+        password: Arc<String>,
         password_is_hash: bool,
         user: UserData,
         recipient: Recipient<ClientResponseMessage>,
@@ -48,13 +49,13 @@ impl RoomActor {
         recipient: &Recipient<ClientResponseMessage>,
         user_id: &String,
     ) {
-        let room_name = self.name.clone();
+        let room_name = (*self.name).clone();
         let msg = ClientResponseMessage::AlreadyInRoom { room_name };
         self.notify_user(&user_id, &recipient, msg);
     }
 
     fn wrong_password(&mut self, recipient: &Recipient<ClientResponseMessage>, user_id: &String) {
-        let room_name = self.name.clone();
+        let room_name = (*self.name).clone();
         let msg = ClientResponseMessage::WrongPassword { room_name };
         self.notify_user(&user_id, &recipient, msg);
     }
@@ -66,13 +67,13 @@ impl RoomActor {
         user_id: &String,
     ) {
         let user_entered_msg = ClientResponseMessage::UserJoined {
-            room_name: self.name.clone(),
+            room_name: (*self.name).clone(),
             user: user.clone(),
         };
         self.notify_users(user_entered_msg);
 
         let connection_info = ConnectionInfo { user, recipient };
-        self.user_map.insert(user_id.clone(), connection_info);
+        self.user_map.insert(Arc::new(user_id.clone()), connection_info);
 
         let joiner = self.user_map.get(user_id).unwrap().recipient.borrow();
         let users: Vec<UserData> = self
@@ -81,8 +82,8 @@ impl RoomActor {
             .map(|conn_info| conn_info.user.clone())
             .collect();
         let join_msg = ClientResponseMessage::RoomJoined {
-            room_name: self.name.clone(),
-            hashed_password: self.hashed_password.clone(),
+            room_name: (*self.name).clone(),
+            hashed_password: (*self.hashed_password).clone(),
             users,
             votes_cast: self.vote_map.len(),
         };

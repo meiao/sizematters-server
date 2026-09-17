@@ -24,21 +24,22 @@ use crate::actors::messages::{ClientResponseMessage, RoomMessage};
 use sizematters_shared::UserData;
 use actix::{Actor, Context, Handler, Recipient};
 use std::collections::HashMap;
+use std::sync::Arc;
 use rand::Rng;
 
 pub struct RoomActor {
-    name: String,
-    hashed_password: String,
-    user_map: HashMap<String, ConnectionInfo>,
-    vote_map: HashMap<String, u64>,
+    name: Arc<String>,
+    hashed_password: Arc<String>,
+    user_map: HashMap<Arc<String>, ConnectionInfo>,
+    vote_map: HashMap<Arc<String>, u64>,
     room_manager: Recipient<RoomMessage>,
     voting_over: bool,
 }
 
 impl RoomActor {
     pub fn new(
-        name: String,
-        password: String,
+        name: Arc<String>,
+        password: Arc<String>,
         password_is_hash: bool,
         room_manager: Recipient<RoomMessage>,
     ) -> RoomActor {
@@ -116,33 +117,33 @@ impl RoomActor {
     }
 
     fn remove_user(&self, user_id: String) {
-        let msg = RoomMessage::UserLeft { user_id };
+        let msg = RoomMessage::UserLeft { user_id: Arc::new(user_id) };
         self.notify_manager(msg);
     }
 
     fn randomize(&self) {
-        let users : Vec<String> = self.user_map.keys().cloned().collect();
+        let users : Vec<Arc<String>> = self.user_map.keys().cloned().collect();
         let mut user_index = 0;
         if self.user_map.len() > 1 {
             user_index = rand::rng().random_range(0..self.user_map.len());
         }
         let selected_user = users.get(user_index);
-        let room_name = self.name.clone();
+        let room_name = (*self.name).clone();
         match selected_user {
             None => println!("RoomActor: User not found in room."),
             Some(user_id) => {
-                let selected_user_id = user_id.clone();
+                let selected_user_id = (**user_id).clone();
                 self.notify_users(ClientResponseMessage::Randomized { room_name, selected_user_id });
             }
         }
     }
 }
 
-fn compute_password(password: String, password_is_hash: bool) -> String {
+fn compute_password(password: Arc<String>, password_is_hash: bool) -> Arc<String> {
     if password_is_hash {
         password
     } else {
-        format!("{:x}", md5::compute(password))
+        Arc::new(format!("{:x}", md5::compute(password.as_bytes())))
     }
 }
 

@@ -19,12 +19,13 @@
 use crate::actors::messages::{ClientResponseMessage, RoomMessage};
 use crate::actors::room::RoomActor;
 use actix::{ActorContext, Context};
+use std::sync::Arc;
 
 impl RoomActor {
-    pub(super) fn leave_room(&mut self, user_id: String, ctx: &mut Context<Self>) {
+    pub(super) fn leave_room(&mut self, user_id: Arc<String>, ctx: &mut Context<Self>) {
         let msg = ClientResponseMessage::UserLeft {
-            user_id: user_id.clone(),
-            room_name: self.name.clone(),
+            user_id: (*user_id).clone(),
+            room_name: (*self.name).clone(),
         };
         self.notify_users(msg);
 
