@@ -16,6 +16,8 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
+use crate::components::ui::alert::{Alert, AlertDescription, AlertTitle};
+use icons::WifiOff;
 use leptos::prelude::*;
 use leptos_router::hooks::use_params_map;
 
@@ -26,13 +28,14 @@ pub fn ErrorPage() -> impl IntoView {
     let error_type = Memo::new(move |_| params.get().get("error_type").unwrap_or_default());
 
     view! {
-        <div class="error">
-            <Show when=move || error_type.get() == "connection">
-                <div>
-                    "There was a problem connecting the websocket."<br />
+        <Show when=move || error_type.get() == "connection">
+            <Alert class="max-w-xl border-destructive/50 text-destructive" attr:role="alert">
+                <WifiOff class="size-4 text-destructive" />
+                <AlertTitle>"There was a problem connecting the websocket."</AlertTitle>
+                <AlertDescription class="text-muted-foreground">
                     "Go kick (with your fists) someone in your IT deparment and tell them it is a life or death situation."
-                </div>
-            </Show>
-        </div>
+                </AlertDescription>
+            </Alert>
+        </Show>
     }
 }

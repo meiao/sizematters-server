@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "server",
+      "runtimeExecutable": "cargo",
+      "runtimeArgs": ["run", "-p", "sizematters-server"],
+      "port": 8080
+    }
+  ]
+}

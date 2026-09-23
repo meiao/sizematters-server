@@ -17,6 +17,10 @@
  */
 
 use crate::components::room::Room;
+use crate::components::ui::alert::{Alert, AlertDescription, AlertTitle};
+use crate::components::ui::button::{Button, ButtonSize, ButtonVariant};
+use crate::components::ui::empty::{Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyMediaVariant, EmptyTitle};
+use icons::{ArrowLeft, CircleAlert, Sparkles, X};
 use crate::stores::{RoomStore, UserStore};
 use crate::ws::WsContext;
 use leptos::prelude::*;
@@ -46,60 +50,68 @@ pub fn MainPage() -> impl IntoView {
     };
 
     view! {
-        <div class="main" on:click=dismiss_banner>
-            // Error toast from server messages
-            <Show when=move || last_error.get().is_some()>
-                <div class="card error-toast" id="error-toast" role="alert">
-                    <div class="card-content">
-                        <span class="material-icons" aria-hidden="true">"error"</span>
-                        <div>{move || last_error.get().unwrap_or_default()}</div>
-                        <button
-                            class="btn btn-icon"
-                            aria-label="Dismiss error"
+        <div class="flex flex-col gap-4" on:click=dismiss_banner>
+            <div class="pointer-events-none absolute inset-x-4 top-4 z-10 flex flex-col items-end gap-2 md:inset-x-6">
+                // Error toast from server messages, floating over the rooms
+                <Show when=move || last_error.get().is_some()>
+                    <Alert
+                        class="pointer-events-auto w-full max-w-md border-destructive/50 bg-card pr-12 text-destructive shadow-lg"
+                        attr:role="alert"
+                    >
+                        <CircleAlert class="size-4 text-destructive" />
+                        <AlertTitle>"Something went wrong"</AlertTitle>
+                        <AlertDescription>{move || last_error.get().unwrap_or_default()}</AlertDescription>
+                        <Button
+                            variant=ButtonVariant::Ghost
+                            size=ButtonSize::IconSm
+                            class="absolute top-2 right-2 text-destructive hover:text-destructive"
+                            attr:aria-label="Dismiss error"
                             on:click=move |e| {
                                 e.stop_propagation();
                                 ws_ctx.clear_error();
                             }
                         >
-                            <span class="material-icons" aria-hidden="true">"close"</span>
-                        </button>
-                    </div>
-                </div>
-            </Show>
+                            <X />
+                        </Button>
+                    </Alert>
+                </Show>
+            </div>
 
             // Banner prompting new users to set their name
             <Show when=move || is_default_name.get() && !banner_dismissed.get()>
-                <div class="card" id="change-name-alert" role="status">
-                    <div class="card-content">
-                        <span class="material-icons" aria-hidden="true">"arrow_back"</span>
-                        <div>
-                            "Hi " <b>"Shirtless Muppet"</b> "."<br />
-                            "You can change your name by clicking it here to the left."
-                        </div>
-                    </div>
-                </div>
+                <Alert class="w-fit max-w-md bg-card" attr:role="status">
+                    <ArrowLeft class="size-4" />
+                    <AlertTitle>"Hi " <b>"Shirtless Muppet"</b> "."</AlertTitle>
+                    <AlertDescription class="text-muted-foreground">
+                        "You can change your name by clicking it in the menu."
+                    </AlertDescription>
+                </Alert>
             </Show>
 
-            <div id="rooms">
-                <For
-                    each=move || rooms.get()
-                    key=|room| room.room_name.clone()
-                    let:room
-                >
-                    {
-                        let rn = room.room_name.clone();
-                        view! { <Room room_name=rn /> }
-                    }
-                </For>
+            <For
+                each=move || rooms.get()
+                key=|room| room.room_name.clone()
+                let:room
+            >
+                {
+                    let rn = room.room_name.clone();
+                    view! { <Room room_name=rn /> }
+                }
+            </For>
 
-                <Show when=move || rooms.get().is_empty()>
-                    <div class="empty-state">
-                        <span class="material-icons empty-icon">"new_releases"</span>
-                        <h2>"Join a room"</h2>
-                        <p>"To get the most of this website you should join a room, or create one. Do so by pressing the '+' over there."</p>
-                    </div>
-                </Show>
-            </div>
+            <Show when=move || rooms.get().is_empty()>
+                <Empty class="mt-12">
+                    <EmptyHeader>
+                        <EmptyMedia variant=EmptyMediaVariant::Icon>
+                            <Sparkles />
+                        </EmptyMedia>
+                        <EmptyTitle>"Join a room"</EmptyTitle>
+                        <EmptyDescription class="max-w-sm">
+                            "To get the most of this website you should join a room, or create one. Do so by pressing the '+' in the menu."
+                        </EmptyDescription>
+                    </EmptyHeader>
+                </Empty>
+            </Show>
         </div>
     }
 }

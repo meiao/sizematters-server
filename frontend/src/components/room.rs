@@ -16,9 +16,12 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
+use crate::components::ui::button::{Button, ButtonSize, ButtonVariant};
+use crate::components::ui::card::{Card, CardAction, CardContent, CardDescription, CardFooter, CardHeader, CardTitle};
 use crate::components::user_card::UserCard;
 use crate::stores::{RoomStore, UserStore, VoteStore};
 use crate::ws;
+use icons::{Check, Link, RotateCcw, Shuffle};
 use leptos::prelude::*;
 
 /// Fibonacci-like vote values used in planning poker.
@@ -82,32 +85,38 @@ pub fn Room(room_name: String) -> impl IntoView {
     });
 
     view! {
-        <div class="card room">
-            <div class="card-header header">
-                <div class="card-title">
-                    {room_name_display} " - " {move || room_link.get()}
-                </div>
-                <button
-                    class="btn btn-icon"
-                    style="color: #fff; margin-left: auto;"
-                    title="Copy room link"
-                    aria-label="Copy room link"
-                    on:click=move |_| {
-                        let link = room_link.get();
-                        if let Some(window) = web_sys::window() {
-                            let clipboard = window.navigator().clipboard();
-                            let _ = clipboard.write_text(&link);
-                            link_copied.set(true);
-                            set_timeout(move || link_copied.set(false), std::time::Duration::from_secs(2));
+        <Card class="gap-0 overflow-hidden pt-0">
+            <CardHeader class="grid grid-cols-[minmax(0,1fr)_auto] bg-black py-4 text-white dark:border-b dark:border-white/10">
+                <CardTitle class="text-lg">{room_name_display}</CardTitle>
+                <CardDescription class="w-full truncate text-neutral-400">
+                    {move || room_link.get()}
+                </CardDescription>
+                <CardAction class="col-start-2 row-span-2 row-start-1 self-center">
+                    <Button
+                        variant=ButtonVariant::Ghost
+                        size=ButtonSize::Icon
+                        class="text-white hover:bg-white/15 hover:text-white"
+                        attr:title="Copy room link"
+                        attr:aria-label="Copy room link"
+                        on:click=move |_| {
+                            let link = room_link.get();
+                            if let Some(window) = web_sys::window() {
+                                let clipboard = window.navigator().clipboard();
+                                let _ = clipboard.write_text(&link);
+                                link_copied.set(true);
+                                set_timeout(move || link_copied.set(false), std::time::Duration::from_secs(2));
+                            }
                         }
-                    }
-                >
-                    <span class="material-icons" aria-hidden="true">
-                        {move || if link_copied.get() { "check" } else { "link" }}
-                    </span>
-                </button>
-            </div>
-            <div class="card-content user-space">
+                    >
+                        {move || if link_copied.get() {
+                            view! { <Check /> }.into_any()
+                        } else {
+                            view! { <Link /> }.into_any()
+                        }}
+                    </Button>
+                </CardAction>
+            </CardHeader>
+            <CardContent class="flex flex-wrap justify-center gap-4 py-6">
                 <For
                     each=move || users()
                     key=|user| user.user_id.clone()
@@ -115,71 +124,76 @@ pub fn Room(room_name: String) -> impl IntoView {
                 >
                     {
                         let rn = rn3.clone();
-                        let vd = voting_done;
                         let uid = user.user_id.clone();
                         let uid2 = user.user_id.clone();
                         view! {
-                            <div
-                                class="user"
-                                class:show-vote=move || vd.get()
-                                class:user-selected=move || selected_user() == Some(uid2.clone())
-                            >
-                                <UserCard user_id=uid.clone() room_name=rn.clone() />
-                            </div>
+                            <UserCard
+                                user_id=uid
+                                room_name=rn
+                                revealed=voting_done
+                                selected=Signal::derive(move || selected_user() == Some(uid2.clone()))
+                            />
                         }
                     }
                 </For>
-            </div>
-            <div class="card-actions" role="group" aria-label="Vote buttons">
+            </CardContent>
+            <CardFooter class="flex-wrap justify-center gap-2 border-t pt-4" attr:role="group" attr:aria-label="Vote buttons">
                 {NUMBERS.iter().map(|&num| {
                     let rn = rn_vote.clone();
                     let vote_val = own_vote_value;
                     let label = format!("Vote {}", num);
                     view! {
-                        <button
-                            class="btn btn-icon vote-button"
-                            class:btn-accent=move || vote_val.get() == Some(num)
-                            class:btn-primary=move || vote_val.get() != Some(num)
-                            aria-label=label
+                        <Button
+                            variant=Signal::derive(move || {
+                                if vote_val.get() == Some(num) {
+                                    ButtonVariant::Success
+                                } else {
+                                    ButtonVariant::Outline
+                                }
+                            })
+                            class="size-10 rounded-full text-base font-semibold sm:size-14 sm:text-xl"
+                            attr:aria-label=label
+                            attr:aria-pressed=move || (vote_val.get() == Some(num)).to_string()
                             on:click=move |_| {
                                 ws::ws_vote(rn.clone(), num);
                             }
                         >
                             {num}
-                        </button>
+                        </Button>
                     }
                 }).collect_view()}
                 <Show when=move || voting_done.get()>
-                    {
-                        let rn = rn_new.clone();
-                        view! {
-                            <button
-                                class="btn btn-accent btn-raised"
-                                on:click=move |_| {
-                                    ws::ws_new_vote(rn.clone());
-                                }
-                            >
-                                "New vote"
-                            </button>
+                    <div class="flex w-full justify-center gap-2 pt-2">
+                        {
+                            let rn = rn_new.clone();
+                            view! {
+                                <Button
+                                    variant=ButtonVariant::Success
+                                    on:click=move |_| {
+                                        ws::ws_new_vote(rn.clone());
+                                    }
+                                >
+                                    <RotateCcw />
+                                    "New vote"
+                                </Button>
+                            }
                         }
-                    }
-                </Show>
-                <Show when=move || voting_done.get()>
-                    {
-                        let rn = rn_rand.clone();
-                        view! {
-                            <button
-                                class="btn btn-primary btn-raised"
-                                on:click=move |_| {
-                                    ws::ws_randomize(rn.clone());
-                                }
-                            >
-                                "Randomize"
-                            </button>
+                        {
+                            let rn = rn_rand.clone();
+                            view! {
+                                <Button
+                                    on:click=move |_| {
+                                        ws::ws_randomize(rn.clone());
+                                    }
+                                >
+                                    <Shuffle />
+                                    "Randomize"
+                                </Button>
+                            }
                         }
-                    }
+                    </div>
                 </Show>
-            </div>
-        </div>
+            </CardFooter>
+        </Card>
     }
 }

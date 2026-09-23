@@ -17,11 +17,22 @@
  */
 
 use crate::components::gravatar::Gravatar;
+use crate::components::ui::badge::{Badge, BadgeSize, BadgeVariant};
 use crate::stores::{UserStore, VoteStore};
+use icons::{Check, CircleHelp};
 use leptos::prelude::*;
 
 #[component]
-pub fn UserCard(user_id: String, room_name: String) -> impl IntoView {
+pub fn UserCard(
+    user_id: String,
+    room_name: String,
+    /// Everyone has voted, so cards flip over to show the vote.
+    #[prop(into)]
+    revealed: Signal<bool>,
+    /// Picked by the randomizer.
+    #[prop(into)]
+    selected: Signal<bool>,
+) -> impl IntoView {
     let user_store = expect_context::<UserStore>();
     let vote_store = expect_context::<VoteStore>();
 
@@ -60,31 +71,42 @@ pub fn UserCard(user_id: String, room_name: String) -> impl IntoView {
 
     let order = move || calculate_order(&name());
 
-    let card_class = move || {
-        let mut cls = "card user-card".to_string();
-        if has_voted() {
-            cls.push_str(" has-voted");
-        }
-        cls
-    };
-
     view! {
-        <div class=card_class style:order=order>
-            <div class="card-header">
-                <div class="card-title">
-                    <span class="name">{name}</span>
-                    <span class="vote-badge" aria-hidden="true">
-                        <span class="material-icons voted">"check"</span>
-                        <span class="material-icons not-voted">"help"</span>
-                    </span>
-                </div>
-            </div>
-            <div class="card-media">
-                {move || {
-                    let gid = gravatar_id.get();
-                    view! { <Gravatar gravatar_id=gid /> }
+        <div
+            data-name="UserCard"
+            class="relative flex w-28 flex-col overflow-hidden rounded-xl border bg-card text-card-foreground shadow-sm transition-shadow sm:w-36"
+            class=("ring-3", move || selected.get())
+            class=("ring-success", move || selected.get())
+            class=("shadow-lg", move || selected.get())
+            class:revealed=move || revealed.get() && has_voted()
+            style:order=order
+        >
+            <div class="flex min-h-12 flex-1 flex-col items-center justify-center px-6 py-2">
+                <span class="line-clamp-2 text-center text-sm leading-tight font-medium break-words">{name}</span>
+                {move || if has_voted() {
+                    view! {
+                        <Badge variant=BadgeVariant::Default size=BadgeSize::Sm class="absolute top-1.5 right-1.5 size-5 justify-center rounded-full p-0 bg-success text-success-foreground" attr:aria-hidden="true">
+                            <Check class="size-3" />
+                        </Badge>
+                    }.into_any()
+                } else {
+                    view! {
+                        <Badge variant=BadgeVariant::Muted size=BadgeSize::Sm class="absolute top-1.5 right-1.5 size-5 justify-center rounded-full p-0" attr:aria-hidden="true">
+                            <CircleHelp class="size-3" />
+                        </Badge>
+                    }.into_any()
                 }}
-                <div class="user-size">{vote_value}</div>
+            </div>
+            <div class="relative aspect-square overflow-hidden perspective-[1000px]">
+                <div class="flip-face flip-front size-full">
+                    {move || {
+                        let gid = gravatar_id.get();
+                        view! { <Gravatar gravatar_id=gid /> }
+                    }}
+                </div>
+                <div class="flip-face flip-back absolute inset-0 flex items-center justify-center bg-card text-4xl font-semibold sm:text-6xl">
+                    {vote_value}
+                </div>
             </div>
         </div>
     }

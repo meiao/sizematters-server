@@ -43,15 +43,18 @@ pub fn App() -> impl IntoView {
 
     view! {
         <Router>
-            <div id="app">
-                <header class="toolbar">
-                    <h1>"Size Matters"</h1>
+            <div class="flex h-full flex-col">
+                <header class="z-10 flex h-14 shrink-0 items-center border-b border-transparent bg-black px-4 text-white shadow-md dark:border-white/10">
+                    <h1 class="text-xl font-medium tracking-tight">"Size Matters"</h1>
                 </header>
-                <div class="app-body">
-                    <nav id="nav" aria-label="Sidebar">
+                <div class="flex min-h-0 flex-1 flex-col md:flex-row">
+                    <nav
+                        aria-label="Sidebar"
+                        class="flex shrink-0 flex-col gap-6 border-b bg-card p-4 md:w-72 md:overflow-y-auto md:border-r md:border-b-0"
+                    >
                         <MenuRouter />
                     </nav>
-                    <main class="app-content">
+                    <main class="relative flex-1 overflow-y-auto p-4 md:p-6">
                         <Routes fallback=|| "Not found">
                             <Route path=path!("/") view=HomePage />
                             <Route path=path!("/main") view=MainPage />

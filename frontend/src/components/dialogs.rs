@@ -16,8 +16,13 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
+use crate::components::ui::button::{Button, ButtonVariant};
+use crate::components::ui::dialog::{
+    Dialog, DialogBody, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
+};
+use crate::components::ui::input::{Input, InputType};
+use crate::components::ui::label::Label;
 use leptos::prelude::*;
-use web_sys::HtmlInputElement;
 
 /// A simple modal dialog with a single text input.
 /// Pass `content` as a slice of paragraphs to display above the input.
@@ -29,8 +34,13 @@ pub fn PromptDialog(
     on_confirm: Callback<String>,
 ) -> impl IntoView {
     let input_value = RwSignal::new(String::new());
+    // Unique per dialog, since several PromptDialogs share a page.
+    let title_id = format!("prompt-dialog-{}", title.to_lowercase().replace(|c: char| !c.is_alphanumeric(), "-"));
+    let input_id = StoredValue::new(format!("{title_id}-input"));
+    let title_id = StoredValue::new(title_id);
 
-    let on_submit = move || {
+    let on_submit = move |e: leptos::ev::SubmitEvent| {
+        e.prevent_default();
         let val = input_value.get();
         if !val.is_empty() {
             on_confirm.run(val);
@@ -40,47 +50,31 @@ pub fn PromptDialog(
     };
 
     view! {
-        <Show when=move || show.get()>
-            <div
-                class="dialog-overlay"
-                on:click=move |_| show.set(false)
-                on:keydown=move |e: web_sys::KeyboardEvent| {
-                    if e.key() == "Escape" {
-                        show.set(false);
-                    }
-                }
-            >
-                <div class="dialog" role="dialog" aria-modal="true" aria-labelledby="prompt-dialog-title" on:click=|e| e.stop_propagation()>
-                    <div class="dialog-title" id="prompt-dialog-title">{title}</div>
+        <Dialog open=show labelledby=title_id.get_value()>
+            <form class="contents" on:submit=on_submit>
+                <DialogHeader>
+                    <DialogTitle attr:id=title_id.get_value()>{title}</DialogTitle>
                     {(!content.is_empty()).then(|| view! {
-                        <div class="dialog-content">
+                        <DialogDescription>
                             {content.iter().map(|&line| view! { <p>{line}</p> }).collect_view()}
-                        </div>
+                        </DialogDescription>
                     })}
-                    <div class="dialog-body">
-                        <input
-                            type="text"
-                            class="dialog-input"
-                            aria-labelledby="prompt-dialog-title"
-                            prop:value=move || input_value.get()
-                            on:input=move |e| {
-                                let target: HtmlInputElement = event_target(&e);
-                                input_value.set(target.value());
-                            }
-                            on:keydown=move |e: web_sys::KeyboardEvent| {
-                                if e.key() == "Enter" {
-                                    on_submit();
-                                }
-                            }
-                        />
-                    </div>
-                    <div class="dialog-actions">
-                        <button class="btn" on:click=move |_| show.set(false)>"Cancel"</button>
-                        <button class="btn btn-primary" on:click=move |_| on_submit()>"Confirm"</button>
-                    </div>
-                </div>
-            </div>
-        </Show>
+                </DialogHeader>
+                <DialogBody>
+                    <Input
+                        id=input_id.get_value()
+                        bind_value=input_value
+                        attr:aria-labelledby=title_id.get_value()
+                    />
+                </DialogBody>
+                <DialogFooter>
+                    <Button variant=ButtonVariant::Outline attr:r#type="button" on:click=move |_| show.set(false)>
+                        "Cancel"
+                    </Button>
+                    <Button attr:r#type="submit">"Confirm"</Button>
+                </DialogFooter>
+            </form>
+        </Dialog>
     }
 }
 
@@ -90,7 +84,8 @@ pub fn RoomDialog(show: RwSignal<bool>, on_confirm: Callback<(String, String)>) 
     let room_name = RwSignal::new(String::new());
     let room_password = RwSignal::new(String::new());
 
-    let on_submit = move || {
+    let on_submit = move |e: leptos::ev::SubmitEvent| {
+        e.prevent_default();
         let name = room_name.get();
         let pw = room_password.get();
         if !name.is_empty() {
@@ -102,19 +97,11 @@ pub fn RoomDialog(show: RwSignal<bool>, on_confirm: Callback<(String, String)>) 
     };
 
     view! {
-        <Show when=move || show.get()>
-            <div
-                class="dialog-overlay"
-                on:click=move |_| show.set(false)
-                on:keydown=move |e: web_sys::KeyboardEvent| {
-                    if e.key() == "Escape" {
-                        show.set(false);
-                    }
-                }
-            >
-                <div class="dialog" role="dialog" aria-modal="true" aria-labelledby="room-dialog-title" on:click=|e| e.stop_propagation()>
-                    <div class="dialog-title" id="room-dialog-title">"Create/Join Room"</div>
-                    <div class="dialog-content">
+        <Dialog open=show labelledby="room-dialog-title">
+            <form class="contents" on:submit=on_submit>
+                <DialogHeader>
+                    <DialogTitle attr:id="room-dialog-title">"Create/Join Room"</DialogTitle>
+                    <DialogDescription>
                         <p>
                             "If someone gave you a room name/password combination, just enter it below to join that room."
                         </p>
@@ -123,51 +110,30 @@ pub fn RoomDialog(show: RwSignal<bool>, on_confirm: Callback<(String, String)>) 
                             <br />
                             "Then share it with your cow-orkers in order to have a size battle."
                         </p>
+                    </DialogDescription>
+                </DialogHeader>
+                <DialogBody>
+                    <div class="flex flex-col gap-2">
+                        <Label html_for="room-name-input">"Room Name"</Label>
+                        <Input id="room-name-input" autocomplete="off" bind_value=room_name />
                     </div>
-                    <div class="dialog-body">
-                        <div class="field">
-                            <label for="room-name-input">"Room Name"</label>
-                            <input
-                                id="room-name-input"
-                                type="text"
-                                class="dialog-input"
-                                prop:value=move || room_name.get()
-                                on:input=move |e| {
-                                    let target: HtmlInputElement = event_target(&e);
-                                    room_name.set(target.value());
-                                }
-                                on:keydown=move |e: web_sys::KeyboardEvent| {
-                                    if e.key() == "Enter" {
-                                        on_submit();
-                                    }
-                                }
-                            />
-                        </div>
-                        <div class="field">
-                            <label for="room-password-input">"Room Password"</label>
-                            <input
-                                id="room-password-input"
-                                type="password"
-                                class="dialog-input"
-                                prop:value=move || room_password.get()
-                                on:input=move |e| {
-                                    let target: HtmlInputElement = event_target(&e);
-                                    room_password.set(target.value());
-                                }
-                                on:keydown=move |e: web_sys::KeyboardEvent| {
-                                    if e.key() == "Enter" {
-                                        on_submit();
-                                    }
-                                }
-                            />
-                        </div>
+                    <div class="flex flex-col gap-2">
+                        <Label html_for="room-password-input">"Room Password"</Label>
+                        <Input
+                            id="room-password-input"
+                            r#type=InputType::Password
+                            autocomplete="off"
+                            bind_value=room_password
+                        />
                     </div>
-                    <div class="dialog-actions">
-                        <button class="btn" on:click=move |_| show.set(false)>"Close"</button>
-                        <button class="btn btn-primary btn-raised" on:click=move |_| on_submit()>"Join"</button>
-                    </div>
-                </div>
-            </div>
-        </Show>
+                </DialogBody>
+                <DialogFooter>
+                    <Button variant=ButtonVariant::Outline attr:r#type="button" on:click=move |_| show.set(false)>
+                        "Close"
+                    </Button>
+                    <Button attr:r#type="submit">"Join"</Button>
+                </DialogFooter>
+            </form>
+        </Dialog>
     }
 }
