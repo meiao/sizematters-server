@@ -1,2 +1,6 @@
 [build]
 dist = "../dist"
+
+[tools]
+# Trunk downloads the standalone Tailwind CLI, so no Node toolchain is needed
+tailwindcss = "4.1.13"

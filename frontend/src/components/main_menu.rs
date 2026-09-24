@@ -17,8 +17,12 @@
  */
 
 use crate::components::dialogs::{PromptDialog, RoomDialog};
+use crate::components::ui::avatar::{Avatar, AvatarFallback, AvatarImage, AvatarSize};
+use crate::components::ui::button::{Button, ButtonSize, ButtonVariant};
+use crate::components::ui::card::{Card, CardAction, CardDescription, CardHeader, CardSize, CardTitle};
 use crate::stores::{RoomStore, UserStore, VoteStore};
 use crate::ws;
+use icons::{Plus, UserPen};
 use leptos::prelude::*;
 
 #[component]
@@ -55,121 +59,116 @@ pub fn MainMenu() -> impl IntoView {
     ws::ws_register();
 
     view! {
-        <div>
-            <PromptDialog
-                title="What's your name?"
-                show=show_name_dialog
-                on_confirm=Callback::new(move |name: String| {
-                    ws::ws_set_name(name);
-                })
-            />
-            <PromptDialog
-                title="Profile picture"
-                content=&[
-                    "I tried my best to create a profile picture for you. Since you didn't like it, you can use your Gravatar image.",
-                    "I will need your email for such. I promise I won't save/sell your email.",
-                ]
-                show=show_email_dialog
-                on_confirm=Callback::new(|email: String| {
-                    ws::ws_set_avatar(email);
-                })
-            />
-            <RoomDialog
-                show=show_room_dialog
-                on_confirm=Callback::new(|(room_name, password): (String, String)| {
-                    ws::ws_join_room(room_name, password, false);
-                })
-            />
+        <PromptDialog
+            title="What's your name?"
+            show=show_name_dialog
+            on_confirm=Callback::new(move |name: String| {
+                ws::ws_set_name(name);
+            })
+        />
+        <PromptDialog
+            title="Profile picture"
+            content=&[
+                "I tried my best to create a profile picture for you. Since you didn't like it, you can use your Gravatar image.",
+                "I will need your email for such. I promise I won't save/sell your email.",
+            ]
+            show=show_email_dialog
+            on_confirm=Callback::new(|email: String| {
+                ws::ws_set_avatar(email);
+            })
+        />
+        <RoomDialog
+            show=show_room_dialog
+            on_confirm=Callback::new(|(room_name, password): (String, String)| {
+                ws::ws_join_room(room_name, password, false);
+            })
+        />
 
-            <div class="card">
-                <div class="card-content" id="user-tag">
-                    <div
-                        id="user-avatar"
-                        class="avatar"
-                        role="button"
-                        tabindex="0"
-                        aria-label="Change profile picture"
-                        on:click=move |_| show_email_dialog.set(true)
-                        on:keydown=move |e: web_sys::KeyboardEvent| {
-                            if e.key() == "Enter" || e.key() == " " {
-                                e.prevent_default();
-                                show_email_dialog.set(true);
-                            }
-                        }
-                    >
-                        {move || {
-                            let url = img_url.get();
-                            if url.is_empty() {
-                                let n = name.get();
-                                let first = n.chars().next().unwrap_or(' ');
-                                view! { <span>{first.to_string()}</span> }.into_any()
-                            } else {
-                                view! { <img src=url alt="" /> }.into_any()
-                            }
-                        }}
-                    </div>
-                    <div
-                        id="user-name"
-                        role="button"
-                        tabindex="0"
-                        aria-label="Change your name"
-                        on:click=move |_| show_name_dialog.set(true)
-                        on:keydown=move |e: web_sys::KeyboardEvent| {
-                            if e.key() == "Enter" || e.key() == " " {
-                                e.prevent_default();
-                                show_name_dialog.set(true);
-                            }
-                        }
-                    >
-                        {name}
-                    </div>
-                </div>
-            </div>
+        <Card size=CardSize::Sm class="flex-row items-center gap-1 px-2">
+            <Button
+                variant=ButtonVariant::Ghost
+                size=ButtonSize::Icon
+                class="size-12 rounded-full p-0"
+                attr:aria-label="Change profile picture"
+                attr:title="Change profile picture"
+                on:click=move |_| show_email_dialog.set(true)
+            >
+                <Avatar size=AvatarSize::Lg class="size-11">
+                    {move || {
+                        let url = img_url.get();
+                        (!url.is_empty()).then(|| view! { <AvatarImage attr:src=url attr:alt="" /> })
+                    }}
+                    <AvatarFallback class="bg-success text-success-foreground text-lg">
+                        {move || name.get().chars().next().map(String::from).unwrap_or_default()}
+                    </AvatarFallback>
+                </Avatar>
+            </Button>
+            <Button
+                variant=ButtonVariant::Ghost
+                class="min-w-0 flex-1 justify-between text-base"
+                attr:aria-label="Change your name"
+                attr:title="Change your name"
+                on:click=move |_| show_name_dialog.set(true)
+            >
+                <span class="truncate">{move || name.get()}</span>
+                <UserPen class="text-muted-foreground" />
+            </Button>
+        </Card>
 
-            <div id="menu-rooms">
-                <header>
+        <section class="flex flex-col gap-3" aria-labelledby="menu-rooms-title">
+            <header class="flex items-center justify-between">
+                <h2 id="menu-rooms-title" class="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
                     "Rooms"
-                    <button class="btn btn-icon btn-primary" aria-label="Create or join a room" on:click=move |_| show_room_dialog.set(true)>
-                        <span class="material-icons" aria-hidden="true">"add"</span>
-                    </button>
-                </header>
-                <Show when=move || rooms.get().is_empty()>
-                    <div class="card">
-                        <div class="card-content">
-                            "Yes, the \"+\" over here"
-                        </div>
-                    </div>
-                </Show>
-                <div id="room-list">
-                    <For
-                        each=move || rooms.get()
-                        key=|room| room.room_name.clone()
-                        let:room
-                    >
-                        {
-                            let rn = room.room_name.clone();
-                            let rn2 = room.room_name.clone();
-                            view! {
-                                <div class="card">
-                                    <div class="card-header">
-                                        <div class="card-title">{rn.clone()}</div>
-                                    </div>
-                                    <div class="card-content">
-                                        "Voting: " {room.votes_cast} "/" {room.users.len()}
-                                    </div>
-                                    <div class="card-actions">
-                                        <button class="btn" on:click=move |_| {
+                </h2>
+                <Button
+                    variant=ButtonVariant::Outline
+                    size=ButtonSize::Icon
+                    class="rounded-full"
+                    attr:aria-label="Create or join a room"
+                    attr:title="Create or join a room"
+                    on:click=move |_| show_room_dialog.set(true)
+                >
+                    <Plus />
+                </Button>
+            </header>
+            <Show when=move || rooms.get().is_empty()>
+                <p class="rounded-lg border border-dashed px-3 py-2 text-right text-sm text-muted-foreground">
+                    "Yes, the \"+\" over here ↑"
+                </p>
+            </Show>
+            <For
+                each=move || rooms.get()
+                key=|room| room.room_name.clone()
+                let:room
+            >
+                {
+                    let rn = room.room_name.clone();
+                    let rn2 = room.room_name.clone();
+                    view! {
+                        <Card size=CardSize::Sm>
+                            <CardHeader class="grid grid-cols-[minmax(0,1fr)_auto]">
+                                <CardTitle class="truncate text-base">{rn}</CardTitle>
+                                <CardDescription>
+                                    "Voting: " {room.votes_cast} "/" {room.users.len()}
+                                </CardDescription>
+                                <CardAction class="col-start-2 row-span-2 row-start-1 self-center">
+                                    <Button
+                                        variant=ButtonVariant::Outline
+                                        size=ButtonSize::Sm
+                                        on:click=move |_| {
                                             ws::ws_leave_room(rn2.clone());
                                             room_store.leave_room(&rn2);
                                             vote_store.leave_room(&rn2);
-                                        }>"Leave"</button>
-                                    </div>
-                                </div>
-                            }
-                        }
-                    </For>
-                </div>
-            </div>
-        </div>
+                                        }
+                                    >
+                                        "Leave"
+                                    </Button>
+                                </CardAction>
+                            </CardHeader>
+                        </Card>
+                    }
+                }
+            </For>
+        </section>
     }
 }

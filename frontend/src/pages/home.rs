@@ -16,18 +16,20 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
+use crate::components::ui::card::{Card, CardContent, CardHeader, CardTitle};
 use leptos::prelude::*;
 
 #[component]
 pub fn HomePage() -> impl IntoView {
     view! {
-        <div class="home">
-            "Welcome to Size Matters."
-            <br />
-            "Here you can get a room with all your developer team and see who has the bigger size."
-            <br />
-            "Or fight until you reach an agreement."
-            <br />
-        </div>
+        <Card class="max-w-xl">
+            <CardHeader>
+                <CardTitle class="text-2xl">"Welcome to Size Matters."</CardTitle>
+            </CardHeader>
+            <CardContent class="flex flex-col gap-2 text-sm leading-relaxed">
+                <p>"Here you can get a room with all your developer team and see who has the bigger size."</p>
+                <p>"Or fight until you reach an agreement."</p>
+            </CardContent>
+        </Card>
     }
 }

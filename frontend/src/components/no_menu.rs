@@ -16,7 +16,9 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
+use crate::components::ui::button::{Button, ButtonSize};
 use crate::ws::WsContext;
+use icons::{DoorOpen, LoaderCircle};
 use leptos::prelude::*;
 
 /// Shown in the sidebar when not connected. Clicking "Enter" initiates the WebSocket connection.
@@ -35,13 +37,19 @@ pub fn NoMenu() -> impl IntoView {
     };
 
     view! {
-        <Show when=move || initiated.get()>
-            <p>"Connecting..."</p>
-        </Show>
-        <Show when=move || !initiated.get()>
-            <button class="btn btn-raised btn-primary" on:click=on_enter>
-                "Enter"
-            </button>
+        <Show
+            when=move || initiated.get()
+            fallback=move || view! {
+                <Button size=ButtonSize::Lg class="w-full" on:click=on_enter>
+                    <DoorOpen />
+                    "Enter"
+                </Button>
+            }
+        >
+            <p class="flex items-center justify-center gap-2 text-sm text-muted-foreground" role="status">
+                <LoaderCircle class="size-4 animate-spin" />
+                "Connecting..."
+            </p>
         </Show>
     }
 }

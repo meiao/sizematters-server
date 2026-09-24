@@ -17,6 +17,7 @@
  */
 
 use crate::ws::{self, WsContext};
+use icons::LoaderCircle;
 use leptos::prelude::*;
 use leptos_router::hooks::{use_navigate, use_params_map};
 
@@ -72,8 +73,9 @@ pub fn ConnectingPage() -> impl IntoView {
     );
 
     view! {
-        <div class="home">
+        <p class="flex items-center gap-2 text-muted-foreground" role="status">
+            <LoaderCircle class="size-4 animate-spin" />
             "Connecting..."
-        </div>
+        </p>
     }
 }

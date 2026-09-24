@@ -1,0 +1,153 @@
+/*
+ * SizeMatters - a ticket sizing util
+ * Copyright (C) 2025 Andre Onuki
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ */
+
+mod join_room;
+mod leave_room;
+mod vote;
+
+use crate::actors::messages::{ClientResponseMessage, RoomMessage};
+use sizematters_shared::UserData;
+use actix::{Actor, Context, Handler, Recipient};
+use std::collections::HashMap;
+use std::sync::Arc;
+use rand::Rng;
+
+pub struct SizingRoom {
+    name: Arc<String>,
+    hashed_password: Arc<String>,
+    user_map: HashMap<Arc<String>, ConnectionInfo>,
+    vote_map: HashMap<Arc<String>, u64>,
+    room_manager: Recipient<RoomMessage>,
+    voting_over: bool,
+}
+
+impl SizingRoom {
+    pub fn new(
+        name: Arc<String>,
+        password: Arc<String>,
+        password_is_hash: bool,
+        room_manager: Recipient<RoomMessage>,
+    ) -> SizingRoom {
+        let hashed_password = compute_password(password, password_is_hash);
+        SizingRoom {
+            name,
+            hashed_password,
+            user_map: HashMap::new(),
+            vote_map: HashMap::new(),
+            room_manager,
+            voting_over: false,
+        }
+    }
+}
+
+impl Actor for SizingRoom {
+    type Context = Context<Self>;
+}
+
+impl Handler<RoomMessage> for SizingRoom {
+    type Result = ();
+
+    fn handle(&mut self, msg: RoomMessage, ctx: &mut Context<Self>) -> Self::Result {
+        match msg {
+            RoomMessage::JoinRoom {
+                password,
+                password_is_hash,
+                user,
+                recipient,
+                ..
+            } => self.join_room(password, password_is_hash, user, recipient),
+            RoomMessage::LeaveRoom { user_id, .. } => self.leave_room(user_id, ctx),
+            RoomMessage::Vote { user_id, size, .. } => self.vote(user_id, size),
+            RoomMessage::NewVote { user_id, .. } => self.new_vote(user_id),
+            RoomMessage::UserUpdated { user } => self.user_updated(user),
+            RoomMessage::Randomize { .. } => self.randomize(),
+            _ => println!("RoomActor: Unhandled message."),
+        }
+    }
+}
+
+impl SizingRoom {
+    fn user_updated(&mut self, user: UserData) {
+        match self.user_map.get_mut(&user.user_id) {
+            None => println!("RoomActor: Updating user not found in room."),
+            Some(conn_info) => {
+                conn_info.user = user.clone();
+                self.notify_users(ClientResponseMessage::UserUpdated { user });
+            }
+        };
+    }
+
+    fn notify_users(&self, msg: ClientResponseMessage) {
+        for (user_id, conn_info) in self.user_map.iter() {
+            self.notify_user(user_id, &conn_info.recipient, msg.clone());
+        }
+    }
+
+    fn notify_user(
+        &self,
+        user_id: &str,
+        recipient: &Recipient<ClientResponseMessage>,
+        msg: ClientResponseMessage,
+    ) {
+        if let Err(err) = recipient.try_send(msg) {
+            println!("RoomActor: Unable to reach ClientActor.\nError: {}", err);
+            self.remove_user(user_id.to_owned());
+        }
+    }
+
+    fn notify_manager(&self, msg: RoomMessage) {
+        if let Err(err) = self.room_manager.try_send(msg) {
+            println!("RoomActor: Unable to reach room manager.\nError: {}", err);
+        }
+    }
+
+    fn remove_user(&self, user_id: String) {
+        let msg = RoomMessage::UserLeft { user_id: Arc::new(user_id) };
+        self.notify_manager(msg);
+    }
+
+    fn randomize(&self) {
+        let users : Vec<Arc<String>> = self.user_map.keys().cloned().collect();
+        let mut user_index = 0;
+        if self.user_map.len() > 1 {
+            user_index = rand::rng().random_range(0..self.user_map.len());
+        }
+        let selected_user = users.get(user_index);
+        let room_name = (*self.name).clone();
+        match selected_user {
+            None => println!("RoomActor: User not found in room."),
+            Some(user_id) => {
+                let selected_user_id = (**user_id).clone();
+                self.notify_users(ClientResponseMessage::Randomized { room_name, selected_user_id });
+            }
+        }
+    }
+}
+
+fn compute_password(password: Arc<String>, password_is_hash: bool) -> Arc<String> {
+    if password_is_hash {
+        password
+    } else {
+        Arc::new(format!("{:x}", md5::compute(password.as_bytes())))
+    }
+}
+
+struct ConnectionInfo {
+    user: UserData,
+    recipient: Recipient<ClientResponseMessage>,
+}

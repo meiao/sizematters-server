@@ -22,3 +22,4 @@ pub mod main_menu;
 pub mod no_menu;
 pub mod room;
 pub mod user_card;
+pub mod ui;

@@ -22,6 +22,6 @@ use leptos::prelude::*;
 pub fn Gravatar(gravatar_id: String) -> impl IntoView {
     let src = format!("https://www.gravatar.com/avatar/{}?d=retro", gravatar_id);
     view! {
-        <img src=src class="user-pic" alt="" />
+        <img src=src class="block size-full object-cover" alt="" />
     }
 }

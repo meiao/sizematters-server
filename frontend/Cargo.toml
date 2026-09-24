@@ -8,7 +8,7 @@ edition.workspace = true
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
-leptos = { version = "0.8", features = ["csr"] }
+leptos = { version = "0.8.20", features = ["csr"] }
 leptos_router = { version = "0.8" }
 web-sys = { version = "0.3", features = [
     "WebSocket",
@@ -20,6 +20,7 @@ web-sys = { version = "0.3", features = [
     "BinaryType",
     "CloseEvent",
     "HtmlDialogElement",
+    "HtmlElement",
     "HtmlInputElement",
     "KeyboardEvent",
     "Navigator",
@@ -37,3 +38,13 @@ console_error_panic_hook = "0.1"
 md5 = "0.7.0"
 
 sizematters-shared = { path = "../shared" }
+
+# rust-ui (https://rust-ui.com) component dependencies
+leptos_ui = "0.3.22"
+tw_merge = { version = "0.1.21", features = ["variant"] }
+icons = { version = "0.18.3", features = ["leptos"] }
+strum = { version = "0.27", features = ["derive"] }
+
+[package.metadata.leptos]
+# Read by the rust-ui `ui` CLI
+tailwind-input-file = "style/tailwind.css"
