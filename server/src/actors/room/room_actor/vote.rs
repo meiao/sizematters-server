@@ -16,8 +16,8 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-use crate::actors::messages::ClientResponseMessage;
 use crate::actors::room::RoomActor;
+use sizematters_shared::messages::ClientResponseMessage;
 use std::collections::HashMap;
 use std::sync::Arc;
 

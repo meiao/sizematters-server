@@ -16,9 +16,10 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-pub use sizematters_shared::{ClientRequestMessage, ClientResponseMessage, UserData};
+pub use sizematters_shared::UserData;
 
 use actix::prelude::*;
+pub use sizematters_shared::messages::ClientResponseMessage;
 use std::clone::Clone;
 use std::sync::Arc;
 

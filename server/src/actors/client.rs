@@ -16,17 +16,17 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
+use super::RoomManagerActor;
+use crate::actors::messages::RoomMessage;
 use actix::prelude::*;
 use actix_web_actors::ws;
 use serde_json::Error;
+use sizematters_shared::messages::{ClientRequestMessage, ClientResponseMessage};
+use sizematters_shared::UserData;
 use std::sync::Arc;
 use std::time::Duration;
 use std::time::Instant;
 use uuid::Uuid;
-
-use super::RoomManagerActor;
-use crate::actors::messages::{ClientRequestMessage, ClientResponseMessage, RoomMessage};
-use sizematters_shared::UserData;
 
 /// How often heartbeat pings are sent
 const HEARTBEAT_INTERVAL: Duration = Duration::from_secs(5);

@@ -18,7 +18,7 @@
 
 use crate::stores::{RoomStore, UserStore, VoteStore};
 use leptos::prelude::*;
-use sizematters_shared::{ClientRequestMessage, ClientResponseMessage};
+use sizematters_shared::messages::{ClientRequestMessage, ClientResponseMessage};
 use wasm_bindgen::prelude::*;
 use web_sys::WebSocket;
 

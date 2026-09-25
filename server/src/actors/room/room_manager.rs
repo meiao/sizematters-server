@@ -16,11 +16,12 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-use crate::actors::messages::{ClientResponseMessage, RoomMessage};
+use crate::actors::messages::RoomMessage;
 use crate::actors::room::RoomActor;
 use actix::prelude::*;
 use actix::Actor;
 use regex::Regex;
+use sizematters_shared::messages::ClientResponseMessage;
 use sizematters_shared::UserData;
 use std::collections::HashMap;
 use std::sync::Arc;

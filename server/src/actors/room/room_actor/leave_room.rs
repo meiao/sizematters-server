@@ -16,9 +16,10 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-use crate::actors::messages::{ClientResponseMessage, RoomMessage};
+use crate::actors::messages::RoomMessage;
 use crate::actors::room::RoomActor;
 use actix::{ActorContext, Context};
+use sizematters_shared::messages::ClientResponseMessage;
 use std::sync::Arc;
 
 impl RoomActor {

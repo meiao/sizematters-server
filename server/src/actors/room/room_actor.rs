@@ -20,9 +20,10 @@ mod join_room;
 mod leave_room;
 mod vote;
 
-use crate::actors::messages::{ClientResponseMessage, RoomMessage};
+use crate::actors::messages::RoomMessage;
 use actix::{Actor, Context, Handler, Recipient};
 use rand::RngExt;
+use sizematters_shared::messages::ClientResponseMessage;
 use sizematters_shared::UserData;
 use std::collections::HashMap;
 use std::sync::Arc;

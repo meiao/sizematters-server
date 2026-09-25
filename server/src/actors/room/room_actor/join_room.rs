@@ -16,10 +16,10 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-use crate::actors::messages::ClientResponseMessage;
 use crate::actors::room::room_actor::{compute_password, ConnectionInfo};
 use crate::actors::room::RoomActor;
 use actix::Recipient;
+use sizematters_shared::messages::ClientResponseMessage;
 use sizematters_shared::UserData;
 use std::borrow::Borrow;
 use std::sync::Arc;
