@@ -35,7 +35,12 @@ pub fn PromptDialog(
 ) -> impl IntoView {
     let input_value = RwSignal::new(String::new());
     // Unique per dialog, since several PromptDialogs share a page.
-    let title_id = format!("prompt-dialog-{}", title.to_lowercase().replace(|c: char| !c.is_alphanumeric(), "-"));
+    let title_id = format!(
+        "prompt-dialog-{}",
+        title
+            .to_lowercase()
+            .replace(|c: char| !c.is_alphanumeric(), "-")
+    );
     let input_id = StoredValue::new(format!("{title_id}-input"));
     let title_id = StoredValue::new(title_id);
 
@@ -78,7 +83,7 @@ pub fn PromptDialog(
     }
 }
 
-/// Modal dialog for creating/joining a room with name and password fields.
+/// Modal dialog for creating/joining a rooms with name and password fields.
 #[component]
 pub fn RoomDialog(show: RwSignal<bool>, on_confirm: Callback<(String, String)>) -> impl IntoView {
     let room_name = RwSignal::new(String::new());
@@ -103,10 +108,10 @@ pub fn RoomDialog(show: RwSignal<bool>, on_confirm: Callback<(String, String)>) 
                     <DialogTitle attr:id="room-dialog-title">"Create/Join Room"</DialogTitle>
                     <DialogDescription>
                         <p>
-                            "If someone gave you a room name/password combination, just enter it below to join that room."
+                            "If someone gave you a rooms name/password combination, just enter it below to join that rooms."
                         </p>
                         <p>
-                            "Or type a new name and select a password to create your own room."
+                            "Or type a new name and select a password to create your own rooms."
                             <br />
                             "Then share it with your cow-orkers in order to have a size battle."
                         </p>

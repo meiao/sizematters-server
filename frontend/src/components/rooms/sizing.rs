@@ -17,12 +17,15 @@
  */
 
 use crate::components::ui::button::{Button, ButtonSize, ButtonVariant};
-use crate::components::ui::card::{Card, CardAction, CardContent, CardDescription, CardFooter, CardHeader, CardTitle};
+use crate::components::ui::card::{
+    Card, CardAction, CardContent, CardDescription, CardFooter, CardHeader, CardTitle,
+};
 use crate::components::user_card::UserCard;
 use crate::stores::{RoomStore, UserStore, VoteStore};
 use crate::ws;
 use icons::{Check, Link, RotateCcw, Shuffle};
 use leptos::prelude::*;
+use sizematters_shared::messages::SizingMessage;
 
 /// Fibonacci-like vote values used in planning poker.
 const NUMBERS: &[u64] = &[0, 1, 2, 3, 5, 8, 13, 21];
@@ -59,13 +62,10 @@ pub fn Room(room_name: String) -> impl IntoView {
         votes
             .get(&rn5)
             .and_then(|rv| rv.get(&own_id))
-            .and_then(|v| v.value)
+            .and_then(|v| v.value.clone())
     });
 
     let room_name_display = room_name.clone();
-    let rn_vote = room_name.clone();
-    let rn_new = room_name.clone();
-    let rn_rand = room_name.clone();
 
     let link_copied = RwSignal::new(false);
 
@@ -83,6 +83,12 @@ pub fn Room(room_name: String) -> impl IntoView {
             .unwrap_or_default();
         format!("{}/room/{}/{}", origin, rn_link, hp)
     });
+
+    let rn_room_msg = StoredValue::new(room_name.clone());
+    let room_msg = move |msg: SizingMessage| match serde_json::to_string(&msg) {
+        Ok(payload) => ws::ws_room_msg(rn_room_msg.get_value(), payload),
+        Err(err) => log::warn!("Failed to serialize message: {}", err),
+    };
 
     view! {
         <Card class="gap-0 overflow-hidden pt-0">
@@ -139,13 +145,12 @@ pub fn Room(room_name: String) -> impl IntoView {
             </CardContent>
             <CardFooter class="flex-wrap justify-center gap-2 border-t pt-4" attr:role="group" attr:aria-label="Vote buttons">
                 {NUMBERS.iter().map(|&num| {
-                    let rn = rn_vote.clone();
                     let vote_val = own_vote_value;
                     let label = format!("Vote {}", num);
                     view! {
                         <Button
                             variant=Signal::derive(move || {
-                                if vote_val.get() == Some(num) {
+                                if vote_val.get() == Some(num.to_string()) {
                                     ButtonVariant::Success
                                 } else {
                                     ButtonVariant::Outline
@@ -153,9 +158,9 @@ pub fn Room(room_name: String) -> impl IntoView {
                             })
                             class="size-10 rounded-full text-base font-semibold sm:size-14 sm:text-xl"
                             attr:aria-label=label
-                            attr:aria-pressed=move || (vote_val.get() == Some(num)).to_string()
+                            attr:aria-pressed=move || (vote_val.get() == Some(num.to_string())).to_string()
                             on:click=move |_| {
-                                ws::ws_vote(rn.clone(), num);
+                                room_msg(SizingMessage::Vote {size: num.to_string()});
                             }
                         >
                             {num}
@@ -164,33 +169,23 @@ pub fn Room(room_name: String) -> impl IntoView {
                 }).collect_view()}
                 <Show when=move || voting_done.get()>
                     <div class="flex w-full justify-center gap-2 pt-2">
-                        {
-                            let rn = rn_new.clone();
-                            view! {
-                                <Button
-                                    variant=ButtonVariant::Success
-                                    on:click=move |_| {
-                                        ws::ws_new_vote(rn.clone());
-                                    }
-                                >
-                                    <RotateCcw />
-                                    "New vote"
-                                </Button>
+                        <Button
+                            variant=ButtonVariant::Success
+                            on:click=move |_| {
+                                room_msg(SizingMessage::NewVote);
                             }
-                        }
-                        {
-                            let rn = rn_rand.clone();
-                            view! {
-                                <Button
-                                    on:click=move |_| {
-                                        ws::ws_randomize(rn.clone());
-                                    }
-                                >
-                                    <Shuffle />
-                                    "Randomize"
-                                </Button>
+                        >
+                            <RotateCcw />
+                            "New vote"
+                        </Button>
+                        <Button
+                            on:click=move |_| {
+                                room_msg(SizingMessage::Randomize);
                             }
-                        }
+                        >
+                            <Shuffle />
+                            "Randomize"
+                        </Button>
                     </div>
                 </Show>
             </CardFooter>

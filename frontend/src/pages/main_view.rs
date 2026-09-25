@@ -16,13 +16,15 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-use crate::components::room::Room;
+use crate::components::rooms::sizing::Room;
 use crate::components::ui::alert::{Alert, AlertDescription, AlertTitle};
 use crate::components::ui::button::{Button, ButtonSize, ButtonVariant};
-use crate::components::ui::empty::{Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyMediaVariant, EmptyTitle};
-use icons::{ArrowLeft, CircleAlert, Sparkles, X};
+use crate::components::ui::empty::{
+    Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyMediaVariant, EmptyTitle,
+};
 use crate::stores::{RoomStore, UserStore};
 use crate::ws::WsContext;
+use icons::{ArrowLeft, CircleAlert, Sparkles, X};
 use leptos::prelude::*;
 
 #[component]

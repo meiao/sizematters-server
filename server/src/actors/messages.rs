@@ -16,16 +16,17 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-pub use sizematters_shared::{ClientRequestMessage, ClientResponseMessage, UserData};
+pub use sizematters_shared::UserData;
 
 use actix::prelude::*;
+pub use sizematters_shared::messages::ClientResponseMessage;
 use std::clone::Clone;
 use std::sync::Arc;
 
 /// messages sent to a RoomActor
 #[derive(Message, Clone)]
 #[rtype(result = "()")]
-pub enum RoomMessage {
+pub enum RoomMessages {
     JoinRoom {
         room_name: Arc<String>,
         password: Arc<String>,
@@ -34,15 +35,6 @@ pub enum RoomMessage {
         recipient: Recipient<ClientResponseMessage>,
     },
     LeaveRoom {
-        room_name: Arc<String>,
-        user_id: Arc<String>,
-    },
-    Vote {
-        room_name: Arc<String>,
-        user_id: Arc<String>,
-        size: u64,
-    },
-    NewVote {
         room_name: Arc<String>,
         user_id: Arc<String>,
     },
@@ -55,7 +47,9 @@ pub enum RoomMessage {
     RoomClosing {
         room_name: Arc<String>,
     },
-    Randomize {
+    SpecificMessage {
         room_name: Arc<String>,
+        user_id: Arc<String>,
+        payload: String,
     },
 }

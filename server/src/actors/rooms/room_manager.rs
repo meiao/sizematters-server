@@ -16,18 +16,19 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-use crate::actors::messages::{ClientResponseMessage, RoomMessage};
-use crate::actors::room::RoomActor;
+use crate::actors::messages::RoomMessages;
+use crate::actors::rooms::SizingRoom;
 use actix::prelude::*;
 use actix::Actor;
 use regex::Regex;
+use sizematters_shared::messages::ClientResponseMessage;
 use sizematters_shared::UserData;
 use std::collections::HashMap;
 use std::sync::Arc;
 
 /// Room manager. This is an actor that knows about all the created rooms and where each user is.
 pub struct RoomManagerActor {
-    rooms: HashMap<Arc<String>, Addr<RoomActor>>,
+    rooms: HashMap<Arc<String>, Addr<SizingRoom>>,
     user_room_map: HashMap<Arc<String>, Arc<String>>,
     room_name_validator: Regex,
 }
@@ -46,12 +47,12 @@ impl RoomManagerActor {
     }
 }
 
-impl Handler<RoomMessage> for RoomManagerActor {
+impl Handler<RoomMessages> for RoomManagerActor {
     type Result = ();
 
-    fn handle(&mut self, msg: RoomMessage, ctx: &mut Context<Self>) -> Self::Result {
+    fn handle(&mut self, msg: RoomMessages, ctx: &mut Context<Self>) -> Self::Result {
         match msg {
-            RoomMessage::JoinRoom {
+            RoomMessages::JoinRoom {
                 ref room_name,
                 ref password,
                 ref user,
@@ -68,13 +69,11 @@ impl Handler<RoomMessage> for RoomManagerActor {
                     ctx,
                 );
             }
-            RoomMessage::UserUpdated { user } => self.user_updated(user),
-            RoomMessage::LeaveRoom { user_id, room_name } => self.leave_room(user_id, room_name),
-            RoomMessage::UserLeft { user_id } => self.user_left(user_id),
-            RoomMessage::Vote { ref room_name, .. } => self.forward(room_name.clone(), msg),
-            RoomMessage::NewVote { ref room_name, .. } => self.forward(room_name.clone(), msg),
-            RoomMessage::Randomize { ref room_name } => self.forward(room_name.clone(), msg),
-            RoomMessage::RoomClosing { room_name } => self.room_closing(room_name),
+            RoomMessages::UserUpdated { user } => self.user_updated(user),
+            RoomMessages::LeaveRoom { user_id, room_name } => self.leave_room(user_id, room_name),
+            RoomMessages::UserLeft { user_id } => self.user_left(user_id),
+            RoomMessages::SpecificMessage { ref room_name, .. } => self.forward(room_name.clone(), msg),
+            RoomMessages::RoomClosing { room_name } => self.room_closing(room_name),
             #[allow(unreachable_patterns)]
             _ => {}
         };
@@ -89,7 +88,7 @@ impl RoomManagerActor {
         password_is_hash: bool,
         user_id: String,
         recipient: Recipient<ClientResponseMessage>,
-        msg: RoomMessage,
+        msg: RoomMessages,
         ctx: &mut Context<Self>,
     ) {
         if self.room_name_validator.is_match(&room_name) {
@@ -111,7 +110,7 @@ impl RoomManagerActor {
     ) {
         let room_manager = ctx.address().recipient();
         let room_actor =
-            RoomActor::new(room_name.clone(), password, password_is_hash, room_manager).start();
+            SizingRoom::new(room_name.clone(), password, password_is_hash, room_manager).start();
         self.rooms.insert(room_name, room_actor);
     }
 
@@ -120,7 +119,7 @@ impl RoomManagerActor {
         room_name: Arc<String>,
         user_id: String,
         recipient: Recipient<ClientResponseMessage>,
-        msg: RoomMessage,
+        msg: RoomMessages,
     ) {
         match self.user_room_map.get(&user_id) {
             None => {
@@ -155,14 +154,14 @@ impl RoomManagerActor {
                 "RoomManager: {} tried to exit {} which does not exist",
                 &user_id, &room_name
             ),
-            Some(room) => room.do_send(RoomMessage::LeaveRoom { user_id, room_name }),
+            Some(room) => room.do_send(RoomMessages::LeaveRoom { user_id, room_name }),
         }
     }
 
     fn user_left(&mut self, user_id: Arc<String>) {
         let room_name = self.user_room_map.remove(&user_id);
         match room_name {
-            None => println!("RoomManager: User left, but no record of his rooms exists."),
+            None => println!("RoomManager: User left, but no record of his room exists."),
             Some(room) => self.leave_room(user_id.clone(), room),
         }
     }
@@ -171,13 +170,13 @@ impl RoomManagerActor {
         let room_name = self.user_room_map.get(&user.user_id);
         match room_name {
             None => println!(
-                "RoomManager: User tried to update his info, but no record of his rooms exists."
+                "RoomManager: User tried to update his info, but no record of his room exists."
             ),
-            Some(room) => self.notify_room(room, RoomMessage::UserUpdated { user }),
+            Some(room) => self.notify_room(room, RoomMessages::UserUpdated { user }),
         }
     }
 
-    fn forward(&mut self, room_name: Arc<String>, msg: RoomMessage) {
+    fn forward(&mut self, room_name: Arc<String>, msg: RoomMessages) {
         match self.rooms.get(&room_name) {
             None => println!("RoomManager: User tried to send a message to an unknown room."),
             Some(room) => room.do_send(msg),
@@ -188,7 +187,7 @@ impl RoomManagerActor {
         self.rooms.remove(&room_name);
     }
 
-    fn notify_room(&self, room_name: &Arc<String>, msg: RoomMessage) {
+    fn notify_room(&self, room_name: &Arc<String>, msg: RoomMessages) {
         let room = self.rooms.get(room_name);
         match room {
             None => println!("RoomManager: Unable to find room to send message to"),

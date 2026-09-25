@@ -69,7 +69,10 @@ pub fn Avatar(
 
 #[component]
 pub fn AvatarImage(#[prop(into, optional)] class: String) -> impl IntoView {
-    let merged_class = tw_merge!("absolute inset-0 aspect-square size-full z-10 rounded-full object-cover", class);
+    let merged_class = tw_merge!(
+        "absolute inset-0 aspect-square size-full z-10 rounded-full object-cover",
+        class
+    );
     let node_ref = NodeRef::<leptos::html::Img>::new();
 
     view! {

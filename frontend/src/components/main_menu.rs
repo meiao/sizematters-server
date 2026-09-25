@@ -19,7 +19,9 @@
 use crate::components::dialogs::{PromptDialog, RoomDialog};
 use crate::components::ui::avatar::{Avatar, AvatarFallback, AvatarImage, AvatarSize};
 use crate::components::ui::button::{Button, ButtonSize, ButtonVariant};
-use crate::components::ui::card::{Card, CardAction, CardDescription, CardHeader, CardSize, CardTitle};
+use crate::components::ui::card::{
+    Card, CardAction, CardDescription, CardHeader, CardSize, CardTitle,
+};
 use crate::stores::{RoomStore, UserStore, VoteStore};
 use crate::ws;
 use icons::{Plus, UserPen};
@@ -115,9 +117,9 @@ pub fn MainMenu() -> impl IntoView {
             </Button>
         </Card>
 
-        <section class="flex flex-col gap-3" aria-labelledby="menu-rooms-title">
+        <section class="flex flex-col gap-3" aria-labelledby="menu-room-title">
             <header class="flex items-center justify-between">
-                <h2 id="menu-rooms-title" class="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
+                <h2 id="menu-room-title" class="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
                     "Rooms"
                 </h2>
                 <Button

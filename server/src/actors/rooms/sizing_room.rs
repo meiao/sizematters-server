@@ -20,31 +20,33 @@ mod join_room;
 mod leave_room;
 mod vote;
 
-use crate::actors::messages::{ClientResponseMessage, RoomMessage};
+use crate::actors::messages::RoomMessages;
 use actix::{Actor, Context, Handler, Recipient};
 use rand::RngExt;
+use serde_json::Error;
+use sizematters_shared::messages::{ClientResponseMessage, SizingMessage};
 use sizematters_shared::UserData;
 use std::collections::HashMap;
 use std::sync::Arc;
 
-pub struct RoomActor {
+pub struct SizingRoom {
     name: Arc<String>,
     hashed_password: Arc<String>,
     user_map: HashMap<Arc<String>, ConnectionInfo>,
-    vote_map: HashMap<Arc<String>, u64>,
-    room_manager: Recipient<RoomMessage>,
+    vote_map: HashMap<Arc<String>, String>,
+    room_manager: Recipient<RoomMessages>,
     voting_over: bool,
 }
 
-impl RoomActor {
+impl SizingRoom {
     pub fn new(
         name: Arc<String>,
         password: Arc<String>,
         password_is_hash: bool,
-        room_manager: Recipient<RoomMessage>,
-    ) -> RoomActor {
+        room_manager: Recipient<RoomMessages>,
+    ) -> SizingRoom {
         let hashed_password = compute_password(password, password_is_hash);
-        RoomActor {
+        SizingRoom {
             name,
             hashed_password,
             user_map: HashMap::new(),
@@ -55,33 +57,33 @@ impl RoomActor {
     }
 }
 
-impl Actor for RoomActor {
+impl Actor for SizingRoom {
     type Context = Context<Self>;
 }
 
-impl Handler<RoomMessage> for RoomActor {
+impl Handler<RoomMessages> for SizingRoom {
     type Result = ();
 
-    fn handle(&mut self, msg: RoomMessage, ctx: &mut Context<Self>) -> Self::Result {
+    fn handle(&mut self, msg: RoomMessages, ctx: &mut Context<Self>) -> Self::Result {
         match msg {
-            RoomMessage::JoinRoom {
+            RoomMessages::JoinRoom {
                 password,
                 password_is_hash,
                 user,
                 recipient,
                 ..
             } => self.join_room(password, password_is_hash, user, recipient),
-            RoomMessage::LeaveRoom { user_id, .. } => self.leave_room(user_id, ctx),
-            RoomMessage::Vote { user_id, size, .. } => self.vote(user_id, size),
-            RoomMessage::NewVote { user_id, .. } => self.new_vote(user_id),
-            RoomMessage::UserUpdated { user } => self.user_updated(user),
-            RoomMessage::Randomize { .. } => self.randomize(),
+            RoomMessages::LeaveRoom { user_id, .. } => self.leave_room(user_id, ctx),
+            RoomMessages::SpecificMessage {
+                user_id, payload, ..
+            } => self.process_message(user_id, payload),
+            RoomMessages::UserUpdated { user } => self.user_updated(user),
             _ => println!("RoomActor: Unhandled message."),
         }
     }
 }
 
-impl RoomActor {
+impl SizingRoom {
     fn user_updated(&mut self, user: UserData) {
         match self.user_map.get_mut(&user.user_id) {
             None => println!("RoomActor: Updating user not found in room."),
@@ -110,17 +112,38 @@ impl RoomActor {
         }
     }
 
-    fn notify_manager(&self, msg: RoomMessage) {
+    fn notify_manager(&self, msg: RoomMessages) {
         if let Err(err) = self.room_manager.try_send(msg) {
             println!("RoomActor: Unable to reach room manager.\nError: {}", err);
         }
     }
 
     fn remove_user(&self, user_id: String) {
-        let msg = RoomMessage::UserLeft {
+        let msg = RoomMessages::UserLeft {
             user_id: Arc::new(user_id),
         };
         self.notify_manager(msg);
+    }
+
+    fn process_message(&mut self, user_id: Arc<String>, payload: String) {
+        let sizing_msg: Result<SizingMessage, Error> = serde_json::from_str(payload.as_str());
+        match sizing_msg {
+            Ok(sizing_msg) => self.process_sizing_message(user_id, sizing_msg),
+            Err(_) => {
+                let user = &self.user_map.get(&user_id).unwrap().recipient;
+                user.do_send(ClientResponseMessage::Error {
+                    msg: "Unable to read message.".to_string(),
+                })
+            }
+        };
+    }
+
+    fn process_sizing_message(&mut self, user_id: Arc<String>, msg: SizingMessage) {
+        match msg {
+            SizingMessage::Vote { size } => self.vote(user_id, size),
+            SizingMessage::NewVote => self.new_vote(user_id),
+            SizingMessage::Randomize => self.randomize(),
+        }
     }
 
     fn randomize(&self) {
