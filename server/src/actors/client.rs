@@ -17,7 +17,7 @@
  */
 
 use super::RoomManagerActor;
-use crate::actors::messages::RoomMessage;
+use crate::actors::messages::RoomMessages;
 use actix::prelude::*;
 use actix_web_actors::ws;
 use serde_json::Error;
@@ -124,9 +124,9 @@ impl ClientActor {
                 password_is_hash,
             } => self.join_room(room_name, password, password_is_hash, ctx),
             ClientRequestMessage::LeaveRoom { room_name } => self.leave_room(room_name, ctx),
-            ClientRequestMessage::Vote { room_name, size } => self.vote(room_name, size, ctx),
-            ClientRequestMessage::NewVote { room_name } => self.new_vote(room_name),
-            ClientRequestMessage::Randomize { room_name } => self.randomize(room_name),
+            ClientRequestMessage::RoomMessage { room_name, payload } => {
+                self.room_message(room_name, payload)
+            }
         }
     }
 
@@ -149,7 +149,8 @@ impl ClientActor {
         self::Handler::handle(self, ClientResponseMessage::OwnData { user }, ctx);
 
         let user = self.user.clone();
-        self.room_manager.do_send(RoomMessage::UserUpdated { user });
+        self.room_manager
+            .do_send(RoomMessages::UserUpdated { user });
     }
 
     fn join_room(
@@ -161,7 +162,7 @@ impl ClientActor {
     ) {
         let user = self.user.clone();
         let recipient = ctx.address().recipient();
-        let msg = RoomMessage::JoinRoom {
+        let msg = RoomMessages::JoinRoom {
             room_name: Arc::new(room_name),
             password: Arc::new(password),
             password_is_hash,
@@ -172,40 +173,25 @@ impl ClientActor {
     }
 
     fn leave_room(&mut self, room_name: String, _ctx: &mut <Self as Actor>::Context) {
-        let msg = RoomMessage::LeaveRoom {
+        let msg = RoomMessages::LeaveRoom {
             user_id: Arc::new(self.user.user_id.clone()),
             room_name: Arc::new(room_name),
-        };
-        self.room_manager.do_send(msg);
-    }
-
-    fn vote(&mut self, room_name: String, size: u64, _ctx: &mut <Self as Actor>::Context) {
-        let msg = RoomMessage::Vote {
-            room_name: Arc::new(room_name),
-            user_id: Arc::new(self.user.user_id.clone()),
-            size,
-        };
-        self.room_manager.do_send(msg);
-    }
-
-    fn new_vote(&self, room_name: String) {
-        let msg = RoomMessage::NewVote {
-            room_name: Arc::new(room_name),
-            user_id: Arc::new(self.user.user_id.clone()),
         };
         self.room_manager.do_send(msg);
     }
 
     fn user_left(&mut self) {
-        let msg = RoomMessage::UserLeft {
+        let msg = RoomMessages::UserLeft {
             user_id: Arc::new(self.user.user_id.clone()),
         };
         self.room_manager.do_send(msg);
     }
 
-    fn randomize(&self, room_name: String) {
-        let msg = RoomMessage::Randomize {
+    fn room_message(&self, room_name: String, payload: String) {
+        let msg = RoomMessages::SpecificMessage {
+            user_id: Arc::new(self.user.user_id.clone()),
             room_name: Arc::new(room_name),
+            payload: payload,
         };
         self.room_manager.do_send(msg);
     }

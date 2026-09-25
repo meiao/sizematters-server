@@ -18,7 +18,7 @@
 
 mod client;
 mod messages;
-mod room;
+mod rooms;
 
 pub use client::ClientActor;
-pub use room::RoomManagerActor;
+pub use rooms::RoomManagerActor;

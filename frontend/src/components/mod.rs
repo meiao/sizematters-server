@@ -20,6 +20,6 @@ pub mod dialogs;
 pub mod gravatar;
 pub mod main_menu;
 pub mod no_menu;
-pub mod room;
-pub mod user_card;
+pub mod rooms;
 pub mod ui;
+pub mod user_card;

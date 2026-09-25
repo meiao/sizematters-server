@@ -41,7 +41,9 @@ pub fn Dialog(
     Effect::new(move |_| {
         if open.get() {
             previous_focus.set_value(
-                document().active_element().and_then(|el| el.dyn_into::<web_sys::HtmlElement>().ok()),
+                document()
+                    .active_element()
+                    .and_then(|el| el.dyn_into::<web_sys::HtmlElement>().ok()),
             );
         } else if let Some(el) = previous_focus.try_update_value(Option::take).flatten() {
             let _ = el.focus();

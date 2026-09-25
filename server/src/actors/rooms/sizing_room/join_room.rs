@@ -16,11 +16,11 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-use crate::actors::messages::ClientResponseMessage;
-use crate::actors::room::sizing_room::{compute_password, ConnectionInfo};
-use crate::actors::room::SizingRoom;
-use sizematters_shared::UserData;
+use crate::actors::rooms::sizing_room::{compute_password, ConnectionInfo};
+use crate::actors::rooms::SizingRoom;
 use actix::Recipient;
+use sizematters_shared::messages::ClientResponseMessage;
+use sizematters_shared::UserData;
 use std::borrow::Borrow;
 use std::sync::Arc;
 
@@ -73,7 +73,8 @@ impl SizingRoom {
         self.notify_users(user_entered_msg);
 
         let connection_info = ConnectionInfo { user, recipient };
-        self.user_map.insert(Arc::new(user_id.clone()), connection_info);
+        self.user_map
+            .insert(Arc::new(user_id.clone()), connection_info);
 
         let joiner = self.user_map.get(user_id).unwrap().recipient.borrow();
         let users: Vec<UserData> = self

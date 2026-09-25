@@ -16,13 +16,13 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-use crate::actors::room::RoomActor;
+use crate::actors::rooms::SizingRoom;
 use sizematters_shared::messages::ClientResponseMessage;
 use std::collections::HashMap;
 use std::sync::Arc;
 
-impl RoomActor {
-    pub(super) fn vote(&mut self, user_id: Arc<String>, size: u64) {
+impl SizingRoom {
+    pub(super) fn vote(&mut self, user_id: Arc<String>, size: String) {
         if self.voting_over() {
             match self.user_map.get(&user_id) {
                 None => println!("RoomActor: User tried to cast vote in a room he is not in."),
@@ -36,7 +36,10 @@ impl RoomActor {
                 None => println!("RoomActor: User tried to cast vote in a room he is not in."),
                 Some(user) => {
                     let room_name = (*self.name).clone();
-                    let msg = ClientResponseMessage::OwnVote { room_name, size };
+                    let msg = ClientResponseMessage::OwnVote {
+                        room_name,
+                        size: size.clone(),
+                    };
                     self.notify_user(&user.user.user_id, &user.recipient, msg);
                 }
             }
@@ -53,10 +56,10 @@ impl RoomActor {
     pub(super) fn send_vote_info(&self) {
         let room_name = (*self.name).clone();
         if self.voting_over() {
-            let votes: HashMap<String, u64> = self
+            let votes: HashMap<String, String> = self
                 .vote_map
                 .iter()
-                .map(|(user_id, size)| ((**user_id).clone(), *size))
+                .map(|(user_id, size)| ((**user_id).clone(), size.clone()))
                 .collect();
             let msg = ClientResponseMessage::VoteResults { room_name, votes };
             self.notify_users(msg);

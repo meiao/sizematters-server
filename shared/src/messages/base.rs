@@ -23,15 +23,9 @@ pub enum ClientRequestMessage {
     LeaveRoom {
         room_name: String,
     },
-    Vote {
+    RoomMessage {
         room_name: String,
-        size: u64,
-    },
-    NewVote {
-        room_name: String,
-    },
-    Randomize {
-        room_name: String,
+        payload: String,
     },
 }
 
@@ -63,7 +57,7 @@ pub enum ClientResponseMessage {
     },
     OwnVote {
         room_name: String,
-        size: u64,
+        size: String,
     },
     VoteStatus {
         room_name: String,
@@ -71,7 +65,7 @@ pub enum ClientResponseMessage {
     },
     VoteResults {
         room_name: String,
-        votes: HashMap<String, u64>,
+        votes: HashMap<String, String>,
     },
     NewVote {
         room_name: String,

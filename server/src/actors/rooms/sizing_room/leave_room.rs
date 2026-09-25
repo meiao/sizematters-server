@@ -16,9 +16,10 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-use crate::actors::messages::{ClientResponseMessage, RoomMessage};
-use crate::actors::room::SizingRoom;
+use crate::actors::messages::RoomMessages;
+use crate::actors::rooms::SizingRoom;
 use actix::{ActorContext, Context};
+use sizematters_shared::messages::ClientResponseMessage;
 use std::sync::Arc;
 
 impl SizingRoom {
@@ -35,7 +36,7 @@ impl SizingRoom {
         self.send_vote_info();
 
         if self.user_map.is_empty() {
-            let msg = RoomMessage::RoomClosing {
+            let msg = RoomMessages::RoomClosing {
                 room_name: self.name.clone(),
             };
             self.notify_manager(msg);

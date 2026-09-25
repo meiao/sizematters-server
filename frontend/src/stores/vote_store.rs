@@ -21,7 +21,7 @@ use std::collections::HashMap;
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct Vote {
-    pub value: Option<u64>,
+    pub value: Option<String>,
     pub has_voted: bool,
 }
 
@@ -89,7 +89,7 @@ impl VoteStore {
         });
     }
 
-    pub fn own_vote(&self, room_name: &str, user_id: &str, size: u64) {
+    pub fn own_vote(&self, room_name: &str, user_id: &str, size: String) {
         self.votes.update(|votes| {
             if let Some(room_votes) = votes.get_mut(room_name) {
                 room_votes.insert(
@@ -118,14 +118,14 @@ impl VoteStore {
     }
 
     /// Reveal all vote values when voting is complete.
-    pub fn vote_results(&self, room_name: &str, results: &HashMap<String, u64>) {
+    pub fn vote_results(&self, room_name: &str, results: &HashMap<String, String>) {
         self.votes.update(|votes| {
             let room_votes = votes.entry(room_name.to_string()).or_default();
             for (user_id, value) in results {
                 room_votes.insert(
                     user_id.clone(),
                     Vote {
-                        value: Some(*value),
+                        value: Some(value.clone()),
                         has_voted: true,
                     },
                 );

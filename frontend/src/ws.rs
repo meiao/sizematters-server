@@ -368,14 +368,6 @@ pub fn ws_leave_room(room_name: String) {
     send_message(ClientRequestMessage::LeaveRoom { room_name });
 }
 
-pub fn ws_vote(room_name: String, size: u64) {
-    send_message(ClientRequestMessage::Vote { room_name, size });
-}
-
-pub fn ws_new_vote(room_name: String) {
-    send_message(ClientRequestMessage::NewVote { room_name });
-}
-
-pub fn ws_randomize(room_name: String) {
-    send_message(ClientRequestMessage::Randomize { room_name });
+pub fn ws_room_msg(room_name: String, payload: String) {
+    send_message(ClientRequestMessage::RoomMessage { room_name, payload })
 }
