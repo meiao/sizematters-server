@@ -20,6 +20,7 @@ pub use sizematters_shared::UserData;
 
 use actix::prelude::*;
 pub use sizematters_shared::messages::ClientResponseMessage;
+use sizematters_shared::RoomType;
 use std::clone::Clone;
 use std::sync::Arc;
 
@@ -27,6 +28,14 @@ use std::sync::Arc;
 #[derive(Message, Clone)]
 #[rtype(result = "()")]
 pub enum RoomMessages {
+    CreateRoom {
+        room_name: Arc<String>,
+        password: Arc<String>,
+        password_is_hash: bool,
+        room_type: RoomType,
+        user: UserData,
+        recipient: Recipient<ClientResponseMessage>,
+    },
     JoinRoom {
         room_name: Arc<String>,
         password: Arc<String>,
@@ -51,5 +60,9 @@ pub enum RoomMessages {
         room_name: Arc<String>,
         user_id: Arc<String>,
         payload: String,
+    },
+    UserJoined {
+        user_name: Arc<String>,
+        room_name: Arc<String>,
     },
 }

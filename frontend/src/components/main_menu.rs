@@ -16,7 +16,7 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-use crate::components::dialogs::{PromptDialog, RoomDialog};
+use crate::components::dialogs::{PromptDialog, RoomDialog, RoomDialogAction};
 use crate::components::ui::avatar::{Avatar, AvatarFallback, AvatarImage, AvatarSize};
 use crate::components::ui::button::{Button, ButtonSize, ButtonVariant};
 use crate::components::ui::card::{
@@ -81,8 +81,13 @@ pub fn MainMenu() -> impl IntoView {
         />
         <RoomDialog
             show=show_room_dialog
-            on_confirm=Callback::new(|(room_name, password): (String, String)| {
-                ws::ws_join_room(room_name, password, false);
+            on_confirm=Callback::new(|action: RoomDialogAction| match action {
+                RoomDialogAction::Join { room_name, password } => {
+                    ws::ws_join_room(room_name, password, false);
+                }
+                RoomDialogAction::Create { room_name, password, room_type } => {
+                    ws::ws_create_room(room_name, password, false, room_type);
+                }
             })
         />
 

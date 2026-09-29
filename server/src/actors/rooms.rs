@@ -16,8 +16,8 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
+mod room;
 mod room_manager;
-mod sizing_room;
+mod sizing_behavior;
 
 pub use room_manager::RoomManagerActor;
-pub use sizing_room::SizingRoom;

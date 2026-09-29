@@ -16,19 +16,22 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
+mod room_factory;
+
 use crate::actors::messages::RoomMessages;
-use crate::actors::rooms::SizingRoom;
+use crate::actors::rooms::room::Room;
+use crate::actors::rooms::sizing_behavior::SizingBehavior;
 use actix::prelude::*;
 use actix::Actor;
 use regex::Regex;
-use sizematters_shared::messages::ClientResponseMessage;
-use sizematters_shared::UserData;
+use sizematters_shared::messages::{ClientResponseMessage, SizingMessage};
+use sizematters_shared::{RoomType, UserData};
 use std::collections::HashMap;
 use std::sync::Arc;
 
 /// Room manager. This is an actor that knows about all the created rooms and where each user is.
 pub struct RoomManagerActor {
-    rooms: HashMap<Arc<String>, Addr<SizingRoom>>,
+    rooms: HashMap<Arc<String>, Recipient<RoomMessages>>,
     user_room_map: HashMap<Arc<String>, Arc<String>>,
     room_name_validator: Regex,
 }
@@ -52,6 +55,24 @@ impl Handler<RoomMessages> for RoomManagerActor {
 
     fn handle(&mut self, msg: RoomMessages, ctx: &mut Context<Self>) -> Self::Result {
         match msg {
+            RoomMessages::CreateRoom {
+                room_name,
+                password,
+                password_is_hash,
+                room_type,
+                user,
+                recipient,
+            } => {
+                self.create_room(
+                    room_name,
+                    password,
+                    password_is_hash,
+                    room_type,
+                    user,
+                    recipient,
+                    ctx,
+                );
+            }
             RoomMessages::JoinRoom {
                 ref room_name,
                 ref password,
@@ -61,8 +82,6 @@ impl Handler<RoomMessages> for RoomManagerActor {
             } => {
                 self.join_room(
                     room_name.to_owned(),
-                    password.to_owned(),
-                    password_is_hash.clone(),
                     user.user_id.to_owned(),
                     recipient.clone(),
                     msg,
@@ -72,8 +91,14 @@ impl Handler<RoomMessages> for RoomManagerActor {
             RoomMessages::UserUpdated { user } => self.user_updated(user),
             RoomMessages::LeaveRoom { user_id, room_name } => self.leave_room(user_id, room_name),
             RoomMessages::UserLeft { user_id } => self.user_left(user_id),
-            RoomMessages::SpecificMessage { ref room_name, .. } => self.forward(room_name.clone(), msg),
+            RoomMessages::SpecificMessage { ref room_name, .. } => {
+                self.forward(room_name.clone(), msg)
+            }
             RoomMessages::RoomClosing { room_name } => self.room_closing(room_name),
+            RoomMessages::UserJoined {
+                user_name,
+                room_name,
+            } => self.user_joined(user_name, room_name),
             #[allow(unreachable_patterns)]
             _ => {}
         };
@@ -84,48 +109,30 @@ impl RoomManagerActor {
     fn join_room(
         &mut self,
         room_name: Arc<String>,
-        password: Arc<String>,
-        password_is_hash: bool,
         user_id: String,
         recipient: Recipient<ClientResponseMessage>,
         msg: RoomMessages,
         ctx: &mut Context<Self>,
     ) {
-        if self.room_name_validator.is_match(&room_name) {
-            if !self.rooms.contains_key(&room_name) {
-                self.create_room(room_name.clone(), password, password_is_hash, ctx);
-            }
-            self.do_join_room(room_name, user_id, recipient, msg);
-        } else {
+        if !self.room_name_validator.is_match(&room_name) {
             self.notify_user(&user_id, &recipient, ClientResponseMessage::InvalidRoomName);
+            return;
         }
-    }
 
-    fn create_room(
-        &mut self,
-        room_name: Arc<String>,
-        password: Arc<String>,
-        password_is_hash: bool,
-        ctx: &mut Context<Self>,
-    ) {
-        let room_manager = ctx.address().recipient();
-        let room_actor =
-            SizingRoom::new(room_name.clone(), password, password_is_hash, room_manager).start();
-        self.rooms.insert(room_name, room_actor);
-    }
-
-    fn do_join_room(
-        &mut self,
-        room_name: Arc<String>,
-        user_id: String,
-        recipient: Recipient<ClientResponseMessage>,
-        msg: RoomMessages,
-    ) {
+        if !self.rooms.contains_key(&room_name) {
+            self.notify_user(
+                &user_id,
+                &recipient,
+                ClientResponseMessage::Error {
+                    msg: "Room not found.".to_string(),
+                },
+            );
+            return;
+        }
         match self.user_room_map.get(&user_id) {
             None => {
                 let room = self.rooms.get(&room_name).unwrap();
                 room.do_send(msg);
-                self.user_room_map.insert(Arc::new(user_id), room_name);
             }
             Some(_) => {
                 println!("RoomManager: User trying to join a second room.");
@@ -138,12 +145,47 @@ impl RoomManagerActor {
         }
     }
 
+    fn create_room(
+        &mut self,
+        room_name: Arc<String>,
+        password: Arc<String>,
+        password_is_hash: bool,
+        room_type: RoomType,
+        user: UserData,
+        recipient: Recipient<ClientResponseMessage>,
+        ctx: &mut Context<Self>,
+    ) {
+        let user_id = &user.user_id;
+        if !self.room_name_validator.is_match(&room_name) {
+            self.notify_user(&user_id, &recipient, ClientResponseMessage::InvalidRoomName);
+            return;
+        }
+
+        if self.rooms.contains_key(&room_name) {
+            self.notify_user(
+                &user_id,
+                &recipient,
+                ClientResponseMessage::Error {
+                    msg: "You are already in this room.".to_string(),
+                },
+            );
+            return;
+        }
+        let room_manager = ctx.address().recipient();
+        let room = room_factory::create(
+            room_name.clone(),
+            password.clone(),
+            password_is_hash,
+            room_type,
+            room_manager,
+        );
+        room.do_send(RoomMessages::JoinRoom {room_name: room_name.clone(), password, password_is_hash, user, recipient});
+        self.rooms.insert(room_name, room);
+    }
+
     fn leave_room(&mut self, user_id: Arc<String>, room_name: Arc<String>) {
         match self.user_room_map.get_mut(&user_id) {
-            None => println!(
-                "RoomManager: {} tried to exit {} which they is not into.",
-                &user_id, &room_name
-            ),
+            None => (),
             Some(_) => {
                 let _ = self.user_room_map.remove(&user_id);
             }
@@ -185,6 +227,10 @@ impl RoomManagerActor {
 
     fn room_closing(&mut self, room_name: Arc<String>) {
         self.rooms.remove(&room_name);
+    }
+
+    fn user_joined(&mut self, user_name: Arc<String>, room_name: Arc<String>) {
+        self.user_room_map.insert(user_name, room_name);
     }
 
     fn notify_room(&self, room_name: &Arc<String>, msg: RoomMessages) {
