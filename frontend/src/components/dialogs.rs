@@ -23,6 +23,8 @@ use crate::components::ui::dialog::{
 use crate::components::ui::input::{Input, InputType};
 use crate::components::ui::label::Label;
 use leptos::prelude::*;
+use sizematters_shared::RoomType;
+use strum::IntoEnumIterator;
 
 /// A simple modal dialog with a single text input.
 /// Pass `content` as a slice of paragraphs to display above the input.
@@ -83,18 +85,54 @@ pub fn PromptDialog(
     }
 }
 
+/// Which action `RoomDialog`'s form submits as.
+#[derive(Clone, Copy, PartialEq, Eq, Default)]
+enum RoomDialogMode {
+    #[default]
+    Join,
+    Create,
+}
+
+/// The outcome of confirming `RoomDialog`: either join an existing room, or create one of a
+/// given `RoomType`.
+#[derive(Clone)]
+pub enum RoomDialogAction {
+    Join {
+        room_name: String,
+        password: String,
+    },
+    Create {
+        room_name: String,
+        password: String,
+        room_type: RoomType,
+    },
+}
+
 /// Modal dialog for creating/joining a rooms with name and password fields.
 #[component]
-pub fn RoomDialog(show: RwSignal<bool>, on_confirm: Callback<(String, String)>) -> impl IntoView {
+pub fn RoomDialog(show: RwSignal<bool>, on_confirm: Callback<RoomDialogAction>) -> impl IntoView {
+    let mode = RwSignal::new(RoomDialogMode::default());
     let room_name = RwSignal::new(String::new());
     let room_password = RwSignal::new(String::new());
+    let room_type = RwSignal::new(RoomType::iter().next().expect("RoomType has no variants"));
 
     let on_submit = move |e: leptos::ev::SubmitEvent| {
         e.prevent_default();
         let name = room_name.get();
-        let pw = room_password.get();
+        let password = room_password.get();
         if !name.is_empty() {
-            on_confirm.run((name, pw));
+            let action = match mode.get() {
+                RoomDialogMode::Join => RoomDialogAction::Join {
+                    room_name: name,
+                    password,
+                },
+                RoomDialogMode::Create => RoomDialogAction::Create {
+                    room_name: name,
+                    password,
+                    room_type: room_type.get(),
+                },
+            };
+            on_confirm.run(action);
         }
         show.set(false);
         room_name.set(String::new());
@@ -118,6 +156,26 @@ pub fn RoomDialog(show: RwSignal<bool>, on_confirm: Callback<(String, String)>) 
                     </DialogDescription>
                 </DialogHeader>
                 <DialogBody>
+                    <div class="flex gap-4" role="radiogroup" aria-label="Create or join a room">
+                        <Label class="font-normal">
+                            <input
+                                r#type="radio"
+                                name="room-dialog-mode"
+                                checked=move || mode.get() == RoomDialogMode::Create
+                                on:change=move |_| mode.set(RoomDialogMode::Create)
+                            />
+                            "Create room"
+                        </Label>
+                        <Label class="font-normal">
+                            <input
+                                r#type="radio"
+                                name="room-dialog-mode"
+                                checked=move || mode.get() == RoomDialogMode::Join
+                                on:change=move |_| mode.set(RoomDialogMode::Join)
+                            />
+                            "Join room"
+                        </Label>
+                    </div>
                     <div class="flex flex-col gap-2">
                         <Label html_for="room-name-input">"Room Name"</Label>
                         <Input id="room-name-input" autocomplete="off" bind_value=room_name />
@@ -131,12 +189,38 @@ pub fn RoomDialog(show: RwSignal<bool>, on_confirm: Callback<(String, String)>) 
                             bind_value=room_password
                         />
                     </div>
+                    <Show when=move || mode.get() == RoomDialogMode::Create>
+                        <div class="flex flex-col gap-2">
+                            <Label html_for="room-type-select">"Room Type"</Label>
+                            <select
+                                id="room-type-select"
+                                class="text-foreground border-input flex h-9 w-full min-w-0 rounded-md border bg-transparent px-3 py-1 text-base shadow-xs outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-2 md:text-sm"
+                                on:change=move |e| {
+                                    let index: usize = event_target_value(&e).parse().unwrap_or(0);
+                                    if let Some(selected) = RoomType::iter().nth(index) {
+                                        room_type.set(selected);
+                                    }
+                                }
+                            >
+                                {RoomType::iter()
+                                    .enumerate()
+                                    .map(|(index, rt)| {
+                                        view! {
+                                            <option value=index.to_string()>{rt.display_name()}</option>
+                                        }
+                                    })
+                                    .collect_view()}
+                            </select>
+                        </div>
+                    </Show>
                 </DialogBody>
                 <DialogFooter>
                     <Button variant=ButtonVariant::Outline attr:r#type="button" on:click=move |_| show.set(false)>
                         "Close"
                     </Button>
-                    <Button attr:r#type="submit">"Join"</Button>
+                    <Button attr:r#type="submit">
+                        {move || if mode.get() == RoomDialogMode::Create { "Create" } else { "Join" }}
+                    </Button>
                 </DialogFooter>
             </form>
         </Dialog>

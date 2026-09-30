@@ -22,7 +22,7 @@ use actix::prelude::*;
 use actix_web_actors::ws;
 use serde_json::Error;
 use sizematters_shared::messages::{ClientRequestMessage, ClientResponseMessage};
-use sizematters_shared::UserData;
+use sizematters_shared::{RoomType, UserData};
 use std::sync::Arc;
 use std::time::Duration;
 use std::time::Instant;
@@ -123,6 +123,12 @@ impl ClientActor {
                 password,
                 password_is_hash,
             } => self.join_room(room_name, password, password_is_hash, ctx),
+            ClientRequestMessage::CreateRoom {
+                room_name,
+                password,
+                password_is_hash,
+                room_type,
+            } => self.create_room(room_name, password, password_is_hash, room_type, ctx),
             ClientRequestMessage::LeaveRoom { room_name } => self.leave_room(room_name, ctx),
             ClientRequestMessage::RoomMessage { room_name, payload } => {
                 self.room_message(room_name, payload)
@@ -151,6 +157,27 @@ impl ClientActor {
         let user = self.user.clone();
         self.room_manager
             .do_send(RoomMessages::UserUpdated { user });
+    }
+
+    fn create_room(
+        &mut self,
+        room_name: String,
+        password: String,
+        password_is_hash: bool,
+        room_type: RoomType,
+        ctx: &mut <Self as Actor>::Context,
+    ) {
+        let user = self.user.clone();
+        let recipient = ctx.address().recipient();
+        let msg = RoomMessages::CreateRoom {
+            room_name: Arc::new(room_name),
+            password: Arc::new(password),
+            password_is_hash,
+            room_type,
+            user,
+            recipient,
+        };
+        self.room_manager.do_send(msg);
     }
 
     fn join_room(

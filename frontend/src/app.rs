@@ -58,7 +58,7 @@ pub fn App() -> impl IntoView {
                         <Routes fallback=|| "Not found">
                             <Route path=path!("/") view=HomePage />
                             <Route path=path!("/main") view=MainPage />
-                            <Route path=path!("/rooms/:room_name/:password") view=ConnectingPage />
+                            <Route path=path!("/room/:room_name/:password") view=ConnectingPage />
                             <Route path=path!("/error/:error_type") view=ErrorPage />
                         </Routes>
                     </main>

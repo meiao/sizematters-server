@@ -1,4 +1,4 @@
-use crate::UserData;
+use crate::{RoomType, UserData};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
@@ -14,6 +14,12 @@ pub enum ClientRequestMessage {
     },
     SetAvatar {
         avatar: String,
+    },
+    CreateRoom {
+        room_name: String,
+        password: String,
+        password_is_hash: bool,
+        room_type: RoomType,
     },
     JoinRoom {
         room_name: String,

@@ -19,6 +19,7 @@
 use crate::stores::{RoomStore, UserStore, VoteStore};
 use leptos::prelude::*;
 use sizematters_shared::messages::{ClientRequestMessage, ClientResponseMessage};
+use sizematters_shared::RoomType;
 use wasm_bindgen::prelude::*;
 use web_sys::WebSocket;
 
@@ -361,6 +362,20 @@ pub fn ws_join_room(room_name: String, password: String, password_is_hash: bool)
         room_name,
         password,
         password_is_hash,
+    });
+}
+
+pub fn ws_create_room(
+    room_name: String,
+    password: String,
+    password_is_hash: bool,
+    room_type: RoomType,
+) {
+    send_message(ClientRequestMessage::CreateRoom {
+        room_name,
+        password,
+        password_is_hash,
+        room_type,
     });
 }
 

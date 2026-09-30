@@ -19,6 +19,7 @@
 pub mod messages;
 
 use serde::{Deserialize, Serialize};
+use strum::EnumIter;
 
 #[derive(Serialize, Deserialize, Clone, Debug, Hash, Eq, PartialEq)]
 pub struct UserData {
@@ -40,5 +41,19 @@ impl UserData {
 
     pub fn set_avatar(&mut self, avatar: &str) {
         self.gravatar_id = format!("{:x}", md5::compute(avatar));
+    }
+}
+
+#[derive(Serialize, Deserialize, Clone, Copy, Debug, Hash, Eq, PartialEq, EnumIter)]
+pub enum RoomType {
+    Sizing,
+}
+
+impl RoomType {
+    /// A human-readable label, for UIs that let the user pick a room type.
+    pub fn display_name(&self) -> &'static str {
+        match self {
+            RoomType::Sizing => "Sizing",
+        }
     }
 }
