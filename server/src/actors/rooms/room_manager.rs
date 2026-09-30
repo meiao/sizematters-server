@@ -179,7 +179,13 @@ impl RoomManagerActor {
             room_type,
             room_manager,
         );
-        room.do_send(RoomMessages::JoinRoom {room_name: room_name.clone(), password, password_is_hash, user, recipient});
+        room.do_send(RoomMessages::JoinRoom {
+            room_name: room_name.clone(),
+            password,
+            password_is_hash,
+            user,
+            recipient,
+        });
         self.rooms.insert(room_name, room);
     }
 
