@@ -19,12 +19,10 @@
 mod room_factory;
 
 use crate::actors::messages::RoomMessages;
-use crate::actors::rooms::room::Room;
-use crate::actors::rooms::sizing_behavior::SizingBehavior;
 use actix::prelude::*;
 use actix::Actor;
 use regex::Regex;
-use sizematters_shared::messages::{ClientResponseMessage, SizingMessage};
+use sizematters_shared::messages::ClientResponseMessage;
 use sizematters_shared::{RoomType, UserData};
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -75,9 +73,9 @@ impl Handler<RoomMessages> for RoomManagerActor {
             }
             RoomMessages::JoinRoom {
                 ref room_name,
-                ref password,
+                password: _,
                 ref user,
-                ref password_is_hash,
+                password_is_hash: _,
                 ref recipient,
             } => {
                 self.join_room(
@@ -112,7 +110,7 @@ impl RoomManagerActor {
         user_id: String,
         recipient: Recipient<ClientResponseMessage>,
         msg: RoomMessages,
-        ctx: &mut Context<Self>,
+        _ctx: &mut Context<Self>,
     ) {
         if !self.room_name_validator.is_match(&room_name) {
             self.notify_user(&user_id, &recipient, ClientResponseMessage::InvalidRoomName);
