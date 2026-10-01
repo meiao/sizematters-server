@@ -21,7 +21,7 @@ use actix::{Actor, ActorContext, Context, Handler, Recipient};
 use serde::de::DeserializeOwned;
 use sizematters_shared::messages::ClientResponseMessage;
 use sizematters_shared::UserData;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 
 /// Logic that is specific to a type of room. `T` is the type of the room specific messages.
@@ -60,6 +60,7 @@ impl<T: 'static> Room<T> {
                 name,
                 hashed_password: compute_password(password, password_is_hash),
                 user_map: HashMap::new(),
+                spectators: HashSet::new(),
                 room_manager,
             },
         }
@@ -111,23 +112,14 @@ impl<T: DeserializeOwned + 'static> Room<T> {
             let msg = ClientResponseMessage::WrongPassword { room_name };
             self.state.send_to_user(&user_id, &recipient, msg);
         } else {
-            let user_joined_msg = ClientResponseMessage::UserJoined {
-                room_name,
-                user: user.clone(),
-            };
-            self.state.notify_users(user_joined_msg);
 
             let connection_info = ConnectionInfo {
-                user: UserInfo::from(user),
+                user: UserInfo::from(user.clone()),
                 recipient,
             };
             self.state.user_map.insert(user_id.clone(), connection_info);
-
-            let user_joined_msg = RoomMessages::UserJoined {
-                user_name: user_id.clone(),
-                room_name: self.state.name.clone(),
-            };
-            self.state.room_manager.do_send(user_joined_msg);
+            self.state.spectators.insert(user_id.clone());
+            self.notify_user_joined(user, &user_id, room_name);
 
             self.behavior.on_join_room(&user_id, &self.state);
         }
@@ -141,6 +133,7 @@ impl<T: DeserializeOwned + 'static> Room<T> {
         self.state.notify_users(msg);
 
         self.state.user_map.remove(&user_id);
+        self.state.spectators.remove(&user_id);
         self.behavior.on_leave_room(&user_id, &self.state);
 
         if self.state.user_map.is_empty() {
@@ -180,6 +173,19 @@ impl<T: DeserializeOwned + 'static> Room<T> {
             ),
         };
     }
+
+    fn notify_user_joined(&mut self, user: UserData, user_id: &Arc<String>, room_name: String) {
+        let user_joined_msg = ClientResponseMessage::UserJoined {
+            room_name,
+            user: user.clone(),
+        };
+        self.state.notify_users(user_joined_msg);
+        let user_joined_msg = RoomMessages::UserJoined {
+            user_name: user_id.clone(),
+            room_name: self.state.name.clone(),
+        };
+        self.state.room_manager.do_send(user_joined_msg);
+    }
 }
 
 /// The state that is common to every type of room.
@@ -187,6 +193,7 @@ pub(super) struct RoomState {
     name: Arc<String>,
     hashed_password: Arc<String>,
     user_map: HashMap<Arc<String>, ConnectionInfo>,
+    spectators: HashSet<Arc<String>>,
     room_manager: Recipient<RoomMessages>,
 }
 
@@ -216,6 +223,10 @@ impl RoomState {
 
     pub(super) fn contains_user(&self, user_id: &Arc<String>) -> bool {
         self.user_map.contains_key(user_id)
+    }
+
+    pub(super) fn is_spectator(&self, user_id: &Arc<String>) -> bool {
+        self.spectators.contains(user_id)
     }
 
     pub(super) fn notify_user(&self, user_id: &Arc<String>, msg: ClientResponseMessage) {
