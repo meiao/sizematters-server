@@ -45,7 +45,6 @@ pub enum ClientResponseMessage {
         room_name: String,
         hashed_password: String,
         users: Vec<UserData>,
-        votes_cast: usize,
     },
     UserJoined {
         room_name: String,

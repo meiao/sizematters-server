@@ -45,7 +45,7 @@ pub fn Room(room_name: String) -> impl IntoView {
     });
 
     let rn2 = room_name.clone();
-    let voting_done = Memo::new(move |_| vote_store.is_voting_done(&rn2));
+    let results_revealed = Memo::new(move |_| vote_store.is_revealed(&rn2));
 
     let rn3 = room_name.clone();
     let users = move || {
@@ -113,6 +113,10 @@ pub fn Room(room_name: String) -> impl IntoView {
         Ok(payload) => ws::ws_room_msg(rn_room_msg.get_value(), payload),
         Err(err) => log::warn!("Failed to serialize message: {}", err),
     };
+
+    let on_revoke = Callback::new(move |target_id: String| {
+        room_msg(SizingMessage::RevokeVotingRights { target_id });
+    });
 
     view! {
         <Card class="gap-0 overflow-hidden pt-0">
@@ -183,8 +187,9 @@ pub fn Room(room_name: String) -> impl IntoView {
                                 <UserCard
                                     user_id=uid
                                     room_name=rn
-                                    revealed=voting_done
+                                    revealed=results_revealed
                                     selected=Signal::derive(move || selected_user() == Some(uid2.clone()))
+                                    on_revoke=on_revoke
                                 />
                             }
                         }
@@ -228,7 +233,7 @@ pub fn Room(room_name: String) -> impl IntoView {
                         }
                     }).collect_view().into_any()
                 }}
-                <Show when=move || voting_done.get()>
+                <Show when=move || results_revealed.get()>
                     <div class="flex w-full justify-center gap-2 pt-2">
                         <Button
                             variant=ButtonVariant::Success

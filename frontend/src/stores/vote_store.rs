@@ -32,6 +32,9 @@ pub struct VoteStore {
     /// Spectator user ids per room. Spectators can't vote and are excluded
     /// from the "everyone voted" check.
     spectators: RwSignal<HashMap<String, HashSet<String>>>,
+    /// Whether results are currently shown for a room. Set directly by the
+    /// VoteResults/NewVote messages rather than derived from vote counts.
+    results_revealed: RwSignal<HashMap<String, bool>>,
 }
 
 impl VoteStore {
@@ -39,6 +42,7 @@ impl VoteStore {
         Self {
             votes: RwSignal::new(HashMap::new()),
             spectators: RwSignal::new(HashMap::new()),
+            results_revealed: RwSignal::new(HashMap::new()),
         }
     }
 
@@ -47,10 +51,9 @@ impl VoteStore {
     }
 
     /// Initialize vote tracking when joining a room.
-    /// Note: votes_cast is a count, we don't know *which* users voted yet.
     /// Everyone who joins a room starts as a spectator server-side, so we
     /// assume the same here; the next VoteStatus message will correct it.
-    pub fn room_joined(&self, room_name: &str, user_ids: &[String], _votes_cast: usize) {
+    pub fn room_joined(&self, room_name: &str, user_ids: &[String]) {
         self.votes.update(|votes| {
             let room_votes: HashMap<String, Vote> = user_ids
                 .iter()
@@ -69,6 +72,9 @@ impl VoteStore {
         self.spectators.update(|spectators| {
             spectators.insert(room_name.to_string(), user_ids.iter().cloned().collect());
         });
+        self.results_revealed.update(|revealed| {
+            revealed.insert(room_name.to_string(), false);
+        });
     }
 
     /// Remove all vote data for a room when leaving it.
@@ -78,6 +84,9 @@ impl VoteStore {
         });
         self.spectators.update(|spectators| {
             spectators.remove(room_name);
+        });
+        self.results_revealed.update(|revealed| {
+            revealed.remove(room_name);
         });
     }
 
@@ -175,7 +184,7 @@ impl VoteStore {
         });
     }
 
-    /// Reveal all vote values when voting is complete.
+    /// Record vote values and reveal them. Called when a VoteResults message arrives.
     pub fn vote_results(&self, room_name: &str, results: &HashMap<String, String>) {
         self.votes.update(|votes| {
             let room_votes = votes.entry(room_name.to_string()).or_default();
@@ -189,6 +198,7 @@ impl VoteStore {
                 );
             }
         });
+        self.show_results(room_name);
     }
 
     pub fn new_vote(&self, room_name: &str) {
@@ -200,24 +210,25 @@ impl VoteStore {
                 }
             }
         });
+        self.hide_results(room_name);
     }
 
-    /// Check if all non-spectator users in a room have cast their votes.
-    /// Uses `.with()` to avoid cloning the entire HashMap.
-    pub fn is_voting_done(&self, room_name: &str) -> bool {
-        let room_spectators = self
-            .spectators
-            .with(|spectators| spectators.get(room_name).cloned().unwrap_or_default());
-        self.votes.with(|votes| {
-            if let Some(room_votes) = votes.get(room_name) {
-                let mut voters = room_votes
-                    .iter()
-                    .filter(|(uid, _)| !room_spectators.contains(*uid))
-                    .peekable();
-                voters.peek().is_some() && voters.all(|(_, v)| v.value.is_some())
-            } else {
-                false
-            }
-        })
+    /// Show results for a room. Called when a VoteResults message arrives.
+    pub fn show_results(&self, room_name: &str) {
+        self.results_revealed.update(|revealed| {
+            revealed.insert(room_name.to_string(), true);
+        });
+    }
+
+    /// Hide results for a room. Called when a NewVote message arrives.
+    pub fn hide_results(&self, room_name: &str) {
+        self.results_revealed.update(|revealed| {
+            revealed.insert(room_name.to_string(), false);
+        });
+    }
+
+    pub fn is_revealed(&self, room_name: &str) -> bool {
+        self.results_revealed
+            .with(|revealed| revealed.get(room_name).copied().unwrap_or(false))
     }
 }

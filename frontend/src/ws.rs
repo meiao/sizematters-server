@@ -263,12 +263,11 @@ fn process_message(
             room_name,
             hashed_password,
             users,
-            votes_cast,
         } => {
             let user_ids: Vec<String> = users.iter().map(|u| u.user_id.clone()).collect();
             user_store.room_joined(&users);
-            vote_store.room_joined(&room_name, &user_ids, votes_cast);
-            room_store.room_joined(room_name, hashed_password, users, votes_cast);
+            vote_store.room_joined(&room_name, &user_ids);
+            room_store.room_joined(room_name, hashed_password, users);
         }
         ClientResponseMessage::UserJoined { room_name, user } => {
             user_store.user_updated(user.clone());

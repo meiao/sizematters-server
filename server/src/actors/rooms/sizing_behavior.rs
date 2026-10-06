@@ -24,26 +24,24 @@ use std::sync::Arc;
 
 pub(super) struct SizingBehavior {
     vote_map: HashMap<Arc<String>, String>,
+    voting_over: bool,
 }
 
 impl SizingBehavior {
     pub(super) fn new() -> Self {
         SizingBehavior {
             vote_map: HashMap::new(),
+            voting_over: false,
         }
     }
 }
 
 impl RoomBehavior<SizingMessage> for SizingBehavior {
     fn on_join_room(&mut self, user_id: &Arc<String>, room: &mut RoomState) {
-        let join_msg = ClientResponseMessage::RoomJoined {
-            room_name: room.room_name(),
-            hashed_password: room.hashed_password(),
-            users: room.users(),
-            votes_cast: self.vote_map.len(),
-        };
-        room.notify_user(user_id, join_msg);
-        room.notify_user(user_id, self.vote_status(room.room_name(), room));
+        room.notify_user(user_id, self.vote_status(room));
+        if self.voting_over {
+            room.notify_user(user_id, self.vote_results(room))
+        }
     }
 
     fn on_leave_room(&mut self, user_id: &Arc<String>, room: &mut RoomState) {
@@ -63,13 +61,13 @@ impl RoomBehavior<SizingMessage> for SizingBehavior {
 }
 
 impl SizingBehavior {
-    fn vote(&mut self, user_id: Arc<String>, size: String, room: &RoomState) {
+    fn vote(&mut self, user_id: Arc<String>, size: String, room: &mut RoomState) {
         if !room.contains_user(&user_id) {
             println!("RoomActor: User tried to cast vote in a room he is not in.");
             return;
         }
 
-        if self.voting_over(room) {
+        if self.voting_over {
             room.notify_user(&user_id, ClientResponseMessage::VotingOver);
             return;
         }
@@ -98,6 +96,7 @@ impl SizingBehavior {
         }
 
         self.vote_map.clear();
+        self.voting_over = false;
 
         room.notify_users(ClientResponseMessage::NewVote {
             room_name: room.room_name(),
@@ -118,12 +117,12 @@ impl SizingBehavior {
         });
     }
 
-    fn register_to_vote(&self, user_id: Arc<String>, room: &mut RoomState) {
+    fn register_to_vote(&mut self, user_id: Arc<String>, room: &mut RoomState) {
         room.remove_spectator(user_id);
         self.send_vote_info(room)
     }
 
-    fn revoke_voting_rights(&self, user_id: Arc<String>, target_id: String, room: &mut RoomState) {
+    fn revoke_voting_rights(&mut self, user_id: Arc<String>, target_id: String, room: &mut RoomState) {
         let target_id = Arc::new(target_id);
         if !room.contains_user(&target_id) {
             room.notify_user(&user_id, ClientResponseMessage::Error { msg: "User not found.".to_string() });
@@ -132,25 +131,23 @@ impl SizingBehavior {
         if room.is_spectator(&target_id) {
             return;
         }
+        self.vote_map.remove(&target_id);
         room.add_spectator(target_id);
         self.send_vote_info(room);
     }
 
-    fn send_vote_info(&self, room: &RoomState) {
-        let room_name = room.room_name();
-        if self.voting_over(room) {
-            let votes: HashMap<String, String> = self
-                .vote_map
-                .iter()
-                .map(|(user_id, size)| ((**user_id).clone(), size.clone()))
-                .collect();
-            room.notify_users(ClientResponseMessage::VoteResults { room_name, votes });
-        } else {
-            room.notify_users(self.vote_status(room_name, room));
+    fn send_vote_info(&mut self, room: &mut RoomState) {
+        room.notify_users(self.vote_status(room));
+        if self.all_voted(room) {
+            self.voting_over = true;
+        }
+        if self.voting_over {
+            room.notify_users(self.vote_results(room));
         }
     }
 
-    fn vote_status(&self, room_name: String, room: &RoomState) -> ClientResponseMessage {
+    fn vote_status(&self, room: &RoomState) -> ClientResponseMessage {
+        let room_name = room.room_name();
         let votes: HashMap<String, bool> = room
             .user_ids()
             .filter(|user_id| !room.is_spectator(&user_id))
@@ -160,7 +157,18 @@ impl SizingBehavior {
         ClientResponseMessage::VoteStatus { room_name, votes, spectators }
     }
 
-    fn voting_over(&self, room: &RoomState) -> bool {
-        self.vote_map.len() == room.user_count() - room.spectator_count()
+    fn vote_results(&self, room: &RoomState) -> ClientResponseMessage {
+        let room_name = room.room_name();
+        let votes: HashMap<String, String> = self
+            .vote_map
+            .iter()
+            .map(|(user_id, size)| ((**user_id).clone(), size.clone()))
+            .collect();
+        ClientResponseMessage::VoteResults { room_name, votes }
+    }
+
+    fn all_voted(&self, room: &RoomState) -> bool {
+        let active_user_count = room.user_count() - room.spectator_count();
+        active_user_count > 0 && self.vote_map.len() == active_user_count
     }
 }

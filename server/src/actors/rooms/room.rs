@@ -120,6 +120,12 @@ impl<T: DeserializeOwned + 'static> Room<T> {
             self.state.user_map.insert(user_id.clone(), connection_info);
             self.state.spectators.insert(user_id.clone());
             self.notify_user_joined(user, &user_id, room_name);
+            let join_msg = ClientResponseMessage::RoomJoined {
+                room_name: self.state.room_name(),
+                hashed_password: self.state.hashed_password(),
+                users: self.state.users(),
+            };
+            self.state.notify_user(&user_id, join_msg);
 
             self.behavior.on_join_room(&user_id, &mut self.state);
         }
