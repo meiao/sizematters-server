@@ -68,6 +68,7 @@ pub enum ClientResponseMessage {
     VoteStatus {
         room_name: String,
         votes: HashMap<String, bool>,
+        spectators: Vec<String>,
     },
     VoteResults {
         room_name: String,

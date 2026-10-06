@@ -8,4 +8,5 @@ pub enum SizingMessage {
     Vote { size: String },
     NewVote,
     Randomize,
+    RegisterToVote,
 }

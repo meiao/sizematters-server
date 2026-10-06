@@ -30,15 +30,15 @@ use std::sync::Arc;
 /// so the behavior can react to it. The hooks receive a read-only view of the room's state.
 pub(super) trait RoomBehavior<T> {
     /// Called after `user_id` was added to the room.
-    fn on_join_room(&mut self, user_id: &Arc<String>, room: &RoomState);
+    fn on_join_room(&mut self, user_id: &Arc<String>, room: &mut RoomState);
 
     /// Called after `user_id` was removed from the room.
-    fn on_leave_room(&mut self, user_id: &Arc<String>, room: &RoomState);
+    fn on_leave_room(&mut self, user_id: &Arc<String>, room: &mut RoomState);
 
     /// Called when the last user left and the room is about to stop.
-    fn on_room_closing(&mut self) {}
+    fn on_room_closing(&mut self, room: &mut RoomState) {}
 
-    fn on_specific_message(&mut self, user_id: Arc<String>, msg: T, room: &RoomState);
+    fn on_specific_message(&mut self, user_id: Arc<String>, msg: T, room: &mut RoomState);
 }
 
 pub(super) struct Room<T: 'static> {
@@ -121,7 +121,7 @@ impl<T: DeserializeOwned + 'static> Room<T> {
             self.state.spectators.insert(user_id.clone());
             self.notify_user_joined(user, &user_id, room_name);
 
-            self.behavior.on_join_room(&user_id, &self.state);
+            self.behavior.on_join_room(&user_id, &mut self.state);
         }
     }
 
@@ -134,10 +134,10 @@ impl<T: DeserializeOwned + 'static> Room<T> {
 
         self.state.user_map.remove(&user_id);
         self.state.spectators.remove(&user_id);
-        self.behavior.on_leave_room(&user_id, &self.state);
+        self.behavior.on_leave_room(&user_id, &mut self.state);
 
         if self.state.user_map.is_empty() {
-            self.behavior.on_room_closing();
+            self.behavior.on_room_closing(&mut self.state);
             let msg = RoomMessages::RoomClosing {
                 room_name: self.state.name.clone(),
             };
@@ -164,7 +164,7 @@ impl<T: DeserializeOwned + 'static> Room<T> {
 
     fn process_message(&mut self, user_id: Arc<String>, payload: String) {
         match serde_json::from_str::<T>(payload.as_str()) {
-            Ok(msg) => self.behavior.on_specific_message(user_id, msg, &self.state),
+            Ok(msg) => self.behavior.on_specific_message(user_id, msg, &mut self.state),
             Err(_) => self.state.notify_user(
                 &user_id,
                 ClientResponseMessage::Error {
@@ -240,6 +240,22 @@ impl RoomState {
         for (user_id, conn_info) in self.user_map.iter() {
             self.send_to_user(user_id, &conn_info.recipient, msg.clone());
         }
+    }
+
+    pub(super) fn remove_spectator(&mut self, user_id: Arc<String>) {
+        self.spectators.remove(&user_id);
+    }
+    
+    pub(super) fn add_spectator(&mut self, user_id: Arc<String>) {
+        self.spectators.insert(user_id);
+    }
+    
+    pub(super) fn spectator_count(&self) -> usize {
+        self.spectators.len()
+    }
+
+    pub(super) fn spectators(&self) -> Vec<String> {
+        self.spectators.iter().map(|user_id| (**user_id).clone()).collect()
     }
 
     fn send_to_user(
