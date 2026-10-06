@@ -286,11 +286,13 @@ fn process_message(
             let own_id = user_store.own_user_id_untracked();
             vote_store.own_vote(&room_name, &own_id, size);
         }
-        ClientResponseMessage::VoteStatus { room_name, votes } => {
+        ClientResponseMessage::VoteStatus { room_name, votes, spectators } => {
             room_store.vote_status(&room_name, &votes);
             vote_store.vote_status(&room_name, &votes);
+            vote_store.set_spectators(&room_name, &spectators);
         }
         ClientResponseMessage::VoteResults { room_name, votes } => {
+            vote_store.mark_as_voters(&room_name, votes.keys().cloned());
             vote_store.vote_results(&room_name, &votes);
         }
         ClientResponseMessage::NewVote { room_name } => {

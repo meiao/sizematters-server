@@ -156,7 +156,7 @@ pub fn MainMenu() -> impl IntoView {
                             <CardHeader class="grid grid-cols-[minmax(0,1fr)_auto]">
                                 <CardTitle class="truncate text-base">{rn}</CardTitle>
                                 <CardDescription>
-                                    "Voting: " {room.votes_cast} "/" {room.users.len()}
+                                    "Voting: " {room.votes_cast} "/" {room.users.len().saturating_sub(vote_store.spectator_count(&room.room_name))}
                                 </CardDescription>
                                 <CardAction class="col-start-2 row-span-2 row-start-1 self-center">
                                     <Button
