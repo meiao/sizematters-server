@@ -18,8 +18,9 @@
 
 use crate::components::gravatar::Gravatar;
 use crate::components::ui::badge::{Badge, BadgeSize, BadgeVariant};
+use crate::components::ui::button::{Button, ButtonSize, ButtonVariant};
 use crate::stores::{UserStore, VoteStore};
-use icons::{Check, CircleHelp};
+use icons::{Check, CircleHelp, EyeOff};
 use leptos::prelude::*;
 
 #[component]
@@ -32,6 +33,8 @@ pub fn UserCard(
     /// Picked by the randomizer.
     #[prop(into)]
     selected: Signal<bool>,
+    /// Called with the user's id when someone moves them to the spectators.
+    on_revoke: Callback<String>,
 ) -> impl IntoView {
     let user_store = expect_context::<UserStore>();
     let vote_store = expect_context::<VoteStore>();
@@ -82,6 +85,19 @@ pub fn UserCard(
             style:order=order
         >
             <div class="flex min-h-12 flex-1 flex-col items-center justify-center px-6 py-2">
+                <Button
+                    variant=ButtonVariant::Ghost
+                    size=ButtonSize::IconXs
+                    class="absolute top-1.5 left-1.5 text-muted-foreground"
+                    attr:title="Move to spectators"
+                    attr:aria-label="Move to spectators"
+                    on:click={
+                        let uid = user_id.clone();
+                        move |_| on_revoke.run(uid.clone())
+                    }
+                >
+                    <EyeOff class="size-3.5" />
+                </Button>
                 <span class="line-clamp-2 text-center text-sm leading-tight font-medium break-words">{name}</span>
                 {move || if has_voted() {
                     view! {

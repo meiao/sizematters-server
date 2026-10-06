@@ -17,7 +17,7 @@
  */
 
 use leptos::prelude::*;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct Vote {
@@ -29,12 +29,20 @@ pub struct Vote {
 #[derive(Clone, Copy)]
 pub struct VoteStore {
     votes: RwSignal<HashMap<String, HashMap<String, Vote>>>,
+    /// Spectator user ids per room. Spectators can't vote and are excluded
+    /// from the "everyone voted" check.
+    spectators: RwSignal<HashMap<String, HashSet<String>>>,
+    /// Whether results are currently shown for a room. Set directly by the
+    /// VoteResults/NewVote messages rather than derived from vote counts.
+    results_revealed: RwSignal<HashMap<String, bool>>,
 }
 
 impl VoteStore {
     pub fn new() -> Self {
         Self {
             votes: RwSignal::new(HashMap::new()),
+            spectators: RwSignal::new(HashMap::new()),
+            results_revealed: RwSignal::new(HashMap::new()),
         }
     }
 
@@ -43,9 +51,9 @@ impl VoteStore {
     }
 
     /// Initialize vote tracking when joining a room.
-    /// Note: votes_cast is a count, we don't know *which* users voted yet.
-    /// All users start as not-voted; VoteStatus message will correct this.
-    pub fn room_joined(&self, room_name: &str, user_ids: &[String], _votes_cast: usize) {
+    /// Everyone who joins a room starts as a spectator server-side, so we
+    /// assume the same here; the next VoteStatus message will correct it.
+    pub fn room_joined(&self, room_name: &str, user_ids: &[String]) {
         self.votes.update(|votes| {
             let room_votes: HashMap<String, Vote> = user_ids
                 .iter()
@@ -61,12 +69,24 @@ impl VoteStore {
                 .collect();
             votes.insert(room_name.to_string(), room_votes);
         });
+        self.spectators.update(|spectators| {
+            spectators.insert(room_name.to_string(), user_ids.iter().cloned().collect());
+        });
+        self.results_revealed.update(|revealed| {
+            revealed.insert(room_name.to_string(), false);
+        });
     }
 
     /// Remove all vote data for a room when leaving it.
     pub fn leave_room(&self, room_name: &str) {
         self.votes.update(|votes| {
             votes.remove(room_name);
+        });
+        self.spectators.update(|spectators| {
+            spectators.remove(room_name);
+        });
+        self.results_revealed.update(|revealed| {
+            revealed.remove(room_name);
         });
     }
 
@@ -79,6 +99,13 @@ impl VoteStore {
                 });
             }
         });
+        // New joiners always start as spectators server-side.
+        self.spectators.update(|spectators| {
+            spectators
+                .entry(room_name.to_string())
+                .or_default()
+                .insert(user_id.to_string());
+        });
     }
 
     pub fn user_left(&self, room_name: &str, user_id: &str) {
@@ -87,6 +114,46 @@ impl VoteStore {
                 room_votes.remove(user_id);
             }
         });
+        self.spectators.update(|spectators| {
+            if let Some(room_spectators) = spectators.get_mut(room_name) {
+                room_spectators.remove(user_id);
+            }
+        });
+    }
+
+    /// Replace the spectator set for a room with the authoritative list from VoteStatus.
+    pub fn set_spectators(&self, room_name: &str, spectator_ids: &[String]) {
+        self.spectators.update(|spectators| {
+            spectators.insert(room_name.to_string(), spectator_ids.iter().cloned().collect());
+        });
+    }
+
+    /// Correct spectator assumptions from a VoteResults message: anyone who cast
+    /// a vote can't be a spectator, even if we hadn't seen a VoteStatus confirming it
+    /// (e.g. we joined after they registered, and the round ended on the first VoteStatus
+    /// we would have gotten, which VoteResults doesn't carry spectator info for).
+    pub fn mark_as_voters(&self, room_name: &str, voter_ids: impl Iterator<Item = String>) {
+        self.spectators.update(|spectators| {
+            if let Some(room_spectators) = spectators.get_mut(room_name) {
+                for voter_id in voter_ids {
+                    room_spectators.remove(&voter_id);
+                }
+            }
+        });
+    }
+
+    pub fn is_spectator(&self, room_name: &str, user_id: &str) -> bool {
+        self.spectators.with(|spectators| {
+            spectators
+                .get(room_name)
+                .map(|s| s.contains(user_id))
+                .unwrap_or(false)
+        })
+    }
+
+    pub fn spectator_count(&self, room_name: &str) -> usize {
+        self.spectators
+            .with(|spectators| spectators.get(room_name).map(|s| s.len()).unwrap_or(0))
     }
 
     pub fn own_vote(&self, room_name: &str, user_id: &str, size: String) {
@@ -117,7 +184,7 @@ impl VoteStore {
         });
     }
 
-    /// Reveal all vote values when voting is complete.
+    /// Record vote values and reveal them. Called when a VoteResults message arrives.
     pub fn vote_results(&self, room_name: &str, results: &HashMap<String, String>) {
         self.votes.update(|votes| {
             let room_votes = votes.entry(room_name.to_string()).or_default();
@@ -131,6 +198,7 @@ impl VoteStore {
                 );
             }
         });
+        self.show_results(room_name);
     }
 
     pub fn new_vote(&self, room_name: &str) {
@@ -142,17 +210,25 @@ impl VoteStore {
                 }
             }
         });
+        self.hide_results(room_name);
     }
 
-    /// Check if all users in a room have cast their votes.
-    /// Uses `.with()` to avoid cloning the entire HashMap.
-    pub fn is_voting_done(&self, room_name: &str) -> bool {
-        self.votes.with(|votes| {
-            if let Some(room_votes) = votes.get(room_name) {
-                !room_votes.is_empty() && room_votes.values().all(|v| v.value.is_some())
-            } else {
-                false
-            }
-        })
+    /// Show results for a room. Called when a VoteResults message arrives.
+    pub fn show_results(&self, room_name: &str) {
+        self.results_revealed.update(|revealed| {
+            revealed.insert(room_name.to_string(), true);
+        });
+    }
+
+    /// Hide results for a room. Called when a NewVote message arrives.
+    pub fn hide_results(&self, room_name: &str) {
+        self.results_revealed.update(|revealed| {
+            revealed.insert(room_name.to_string(), false);
+        });
+    }
+
+    pub fn is_revealed(&self, room_name: &str) -> bool {
+        self.results_revealed
+            .with(|revealed| revealed.get(room_name).copied().unwrap_or(false))
     }
 }

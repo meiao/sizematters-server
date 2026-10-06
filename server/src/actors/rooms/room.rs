@@ -21,7 +21,7 @@ use actix::{Actor, ActorContext, Context, Handler, Recipient};
 use serde::de::DeserializeOwned;
 use sizematters_shared::messages::ClientResponseMessage;
 use sizematters_shared::UserData;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 
 /// Logic that is specific to a type of room. `T` is the type of the room specific messages.
@@ -30,15 +30,15 @@ use std::sync::Arc;
 /// so the behavior can react to it. The hooks receive a read-only view of the room's state.
 pub(super) trait RoomBehavior<T> {
     /// Called after `user_id` was added to the room.
-    fn on_join_room(&mut self, user_id: &Arc<String>, room: &RoomState);
+    fn on_join_room(&mut self, user_id: &Arc<String>, room: &mut RoomState);
 
     /// Called after `user_id` was removed from the room.
-    fn on_leave_room(&mut self, user_id: &Arc<String>, room: &RoomState);
+    fn on_leave_room(&mut self, user_id: &Arc<String>, room: &mut RoomState);
 
     /// Called when the last user left and the room is about to stop.
-    fn on_room_closing(&mut self) {}
+    fn on_room_closing(&mut self, room: &mut RoomState) {}
 
-    fn on_specific_message(&mut self, user_id: Arc<String>, msg: T, room: &RoomState);
+    fn on_specific_message(&mut self, user_id: Arc<String>, msg: T, room: &mut RoomState);
 }
 
 pub(super) struct Room<T: 'static> {
@@ -60,6 +60,7 @@ impl<T: 'static> Room<T> {
                 name,
                 hashed_password: compute_password(password, password_is_hash),
                 user_map: HashMap::new(),
+                spectators: HashSet::new(),
                 room_manager,
             },
         }
@@ -111,25 +112,22 @@ impl<T: DeserializeOwned + 'static> Room<T> {
             let msg = ClientResponseMessage::WrongPassword { room_name };
             self.state.send_to_user(&user_id, &recipient, msg);
         } else {
-            let user_joined_msg = ClientResponseMessage::UserJoined {
-                room_name,
-                user: user.clone(),
-            };
-            self.state.notify_users(user_joined_msg);
 
             let connection_info = ConnectionInfo {
-                user: UserInfo::from(user),
+                user: UserInfo::from(user.clone()),
                 recipient,
             };
             self.state.user_map.insert(user_id.clone(), connection_info);
-
-            let user_joined_msg = RoomMessages::UserJoined {
-                user_name: user_id.clone(),
-                room_name: self.state.name.clone(),
+            self.state.spectators.insert(user_id.clone());
+            self.notify_user_joined(user, &user_id, room_name);
+            let join_msg = ClientResponseMessage::RoomJoined {
+                room_name: self.state.room_name(),
+                hashed_password: self.state.hashed_password(),
+                users: self.state.users(),
             };
-            self.state.room_manager.do_send(user_joined_msg);
+            self.state.notify_user(&user_id, join_msg);
 
-            self.behavior.on_join_room(&user_id, &self.state);
+            self.behavior.on_join_room(&user_id, &mut self.state);
         }
     }
 
@@ -141,10 +139,11 @@ impl<T: DeserializeOwned + 'static> Room<T> {
         self.state.notify_users(msg);
 
         self.state.user_map.remove(&user_id);
-        self.behavior.on_leave_room(&user_id, &self.state);
+        self.state.spectators.remove(&user_id);
+        self.behavior.on_leave_room(&user_id, &mut self.state);
 
         if self.state.user_map.is_empty() {
-            self.behavior.on_room_closing();
+            self.behavior.on_room_closing(&mut self.state);
             let msg = RoomMessages::RoomClosing {
                 room_name: self.state.name.clone(),
             };
@@ -171,7 +170,7 @@ impl<T: DeserializeOwned + 'static> Room<T> {
 
     fn process_message(&mut self, user_id: Arc<String>, payload: String) {
         match serde_json::from_str::<T>(payload.as_str()) {
-            Ok(msg) => self.behavior.on_specific_message(user_id, msg, &self.state),
+            Ok(msg) => self.behavior.on_specific_message(user_id, msg, &mut self.state),
             Err(_) => self.state.notify_user(
                 &user_id,
                 ClientResponseMessage::Error {
@@ -180,6 +179,19 @@ impl<T: DeserializeOwned + 'static> Room<T> {
             ),
         };
     }
+
+    fn notify_user_joined(&mut self, user: UserData, user_id: &Arc<String>, room_name: String) {
+        let user_joined_msg = ClientResponseMessage::UserJoined {
+            room_name,
+            user: user.clone(),
+        };
+        self.state.notify_users(user_joined_msg);
+        let user_joined_msg = RoomMessages::UserJoined {
+            user_name: user_id.clone(),
+            room_name: self.state.name.clone(),
+        };
+        self.state.room_manager.do_send(user_joined_msg);
+    }
 }
 
 /// The state that is common to every type of room.
@@ -187,6 +199,7 @@ pub(super) struct RoomState {
     name: Arc<String>,
     hashed_password: Arc<String>,
     user_map: HashMap<Arc<String>, ConnectionInfo>,
+    spectators: HashSet<Arc<String>>,
     room_manager: Recipient<RoomMessages>,
 }
 
@@ -218,6 +231,10 @@ impl RoomState {
         self.user_map.contains_key(user_id)
     }
 
+    pub(super) fn is_spectator(&self, user_id: &Arc<String>) -> bool {
+        self.spectators.contains(user_id)
+    }
+
     pub(super) fn notify_user(&self, user_id: &Arc<String>, msg: ClientResponseMessage) {
         match self.user_map.get(user_id) {
             None => println!("RoomActor: User not found in room."),
@@ -229,6 +246,22 @@ impl RoomState {
         for (user_id, conn_info) in self.user_map.iter() {
             self.send_to_user(user_id, &conn_info.recipient, msg.clone());
         }
+    }
+
+    pub(super) fn remove_spectator(&mut self, user_id: Arc<String>) {
+        self.spectators.remove(&user_id);
+    }
+    
+    pub(super) fn add_spectator(&mut self, user_id: Arc<String>) {
+        self.spectators.insert(user_id);
+    }
+    
+    pub(super) fn spectator_count(&self) -> usize {
+        self.spectators.len()
+    }
+
+    pub(super) fn spectators(&self) -> Vec<String> {
+        self.spectators.iter().map(|user_id| (**user_id).clone()).collect()
     }
 
     fn send_to_user(

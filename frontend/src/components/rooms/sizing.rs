@@ -16,6 +16,7 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
+use crate::components::gravatar::Gravatar;
 use crate::components::ui::button::{Button, ButtonSize, ButtonVariant};
 use crate::components::ui::card::{
     Card, CardAction, CardContent, CardDescription, CardFooter, CardHeader, CardTitle,
@@ -23,9 +24,10 @@ use crate::components::ui::card::{
 use crate::components::user_card::UserCard;
 use crate::stores::{RoomStore, UserStore, VoteStore};
 use crate::ws;
-use icons::{Check, Link, RotateCcw, Shuffle};
+use icons::{Check, Eye, Link, RotateCcw, Shuffle};
 use leptos::prelude::*;
 use sizematters_shared::messages::SizingMessage;
+use sizematters_shared::UserData;
 
 /// Fibonacci-like vote values used in planning poker.
 const NUMBERS: &[u64] = &[0, 1, 2, 3, 5, 8, 13, 21];
@@ -43,7 +45,7 @@ pub fn Room(room_name: String) -> impl IntoView {
     });
 
     let rn2 = room_name.clone();
-    let voting_done = Memo::new(move |_| vote_store.is_voting_done(&rn2));
+    let results_revealed = Memo::new(move |_| vote_store.is_revealed(&rn2));
 
     let rn3 = room_name.clone();
     let users = move || {
@@ -53,7 +55,29 @@ pub fn Room(room_name: String) -> impl IntoView {
             .unwrap_or_default()
     };
 
+    let rn_voters = room_name.clone();
+    let voters = Memo::new(move |_| -> Vec<UserData> {
+        users()
+            .into_iter()
+            .filter(|u| !vote_store.is_spectator(&rn_voters, &u.user_id))
+            .collect()
+    });
+
+    let rn_spectators = room_name.clone();
+    let spectators = Memo::new(move |_| -> Vec<UserData> {
+        users()
+            .into_iter()
+            .filter(|u| vote_store.is_spectator(&rn_spectators, &u.user_id))
+            .collect()
+    });
+
     let selected_user = move || room_status.get().and_then(|r| r.selected_user.clone());
+
+    let rn4 = room_name.clone();
+    let own_is_spectator = Memo::new(move |_| {
+        let own_id = user_store.own_user_id();
+        vote_store.is_spectator(&rn4, &own_id)
+    });
 
     let rn5 = room_name.clone();
     let own_vote_value = Memo::new(move |_| {
@@ -90,6 +114,10 @@ pub fn Room(room_name: String) -> impl IntoView {
         Err(err) => log::warn!("Failed to serialize message: {}", err),
     };
 
+    let on_revoke = Callback::new(move |target_id: String| {
+        room_msg(SizingMessage::RevokeVotingRights { target_id });
+    });
+
     view! {
         <Card class="gap-0 overflow-hidden pt-0">
             <CardHeader class="grid grid-cols-[minmax(0,1fr)_auto] bg-black py-4 text-white dark:border-b dark:border-white/10">
@@ -122,52 +150,90 @@ pub fn Room(room_name: String) -> impl IntoView {
                     </Button>
                 </CardAction>
             </CardHeader>
-            <CardContent class="flex flex-wrap justify-center gap-4 py-6">
-                <For
-                    each=move || users()
-                    key=|user| user.user_id.clone()
-                    let:user
-                >
-                    {
-                        let rn = rn3.clone();
-                        let uid = user.user_id.clone();
-                        let uid2 = user.user_id.clone();
-                        view! {
-                            <UserCard
-                                user_id=uid
-                                room_name=rn
-                                revealed=voting_done
-                                selected=Signal::derive(move || selected_user() == Some(uid2.clone()))
-                            />
+            <CardContent class="flex items-start gap-4 py-6">
+                <Show when=move || !spectators.get().is_empty()>
+                    <div class="flex w-36 shrink-0 flex-col gap-2 rounded-lg border p-3">
+                        <h3 class="flex items-center gap-1.5 text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                            <Eye class="size-3.5" />
+                            "Spectators"
+                        </h3>
+                        <div class="flex flex-col gap-2">
+                            <For
+                                each=move || spectators.get()
+                                key=|user| user.user_id.clone()
+                                let:user
+                            >
+                                <div class="flex items-center gap-2">
+                                    <div class="size-6 shrink-0 overflow-hidden rounded-full">
+                                        <Gravatar gravatar_id=user.gravatar_id.clone() />
+                                    </div>
+                                    <span class="truncate text-sm">{user.name.clone()}</span>
+                                </div>
+                            </For>
+                        </div>
+                    </div>
+                </Show>
+                <div class="flex flex-1 flex-wrap justify-center gap-4">
+                    <For
+                        each=move || voters.get()
+                        key=|user| user.user_id.clone()
+                        let:user
+                    >
+                        {
+                            let rn = rn3.clone();
+                            let uid = user.user_id.clone();
+                            let uid2 = user.user_id.clone();
+                            view! {
+                                <UserCard
+                                    user_id=uid
+                                    room_name=rn
+                                    revealed=results_revealed
+                                    selected=Signal::derive(move || selected_user() == Some(uid2.clone()))
+                                    on_revoke=on_revoke
+                                />
+                            }
                         }
-                    }
-                </For>
+                    </For>
+                </div>
             </CardContent>
             <CardFooter class="flex-wrap justify-center gap-2 border-t pt-4" attr:role="group" attr:aria-label="Vote buttons">
-                {NUMBERS.iter().map(|&num| {
-                    let vote_val = own_vote_value;
-                    let label = format!("Vote {}", num);
+                {move || if own_is_spectator.get() {
                     view! {
                         <Button
-                            variant=Signal::derive(move || {
-                                if vote_val.get() == Some(num.to_string()) {
-                                    ButtonVariant::Success
-                                } else {
-                                    ButtonVariant::Outline
-                                }
-                            })
-                            class="size-10 rounded-full text-base font-semibold sm:size-14 sm:text-xl"
-                            attr:aria-label=label
-                            attr:aria-pressed=move || (vote_val.get() == Some(num.to_string())).to_string()
                             on:click=move |_| {
-                                room_msg(SizingMessage::Vote {size: num.to_string()});
+                                room_msg(SizingMessage::RegisterToVote);
                             }
                         >
-                            {num}
+                            <Eye />
+                            "Register to vote"
                         </Button>
-                    }
-                }).collect_view()}
-                <Show when=move || voting_done.get()>
+                    }.into_any()
+                } else {
+                    NUMBERS.iter().map(|&num| {
+                        let vote_val = own_vote_value;
+                        let label = format!("Vote {}", num);
+                        view! {
+                            <Button
+                                variant=Signal::derive(move || {
+                                    if vote_val.get() == Some(num.to_string()) {
+                                        ButtonVariant::Success
+                                    } else {
+                                        ButtonVariant::Outline
+                                    }
+                                })
+                                class="size-10 rounded-full text-base font-semibold sm:size-14 sm:text-xl"
+                                attr:aria-label=label
+                                attr:aria-pressed=move || (vote_val.get() == Some(num.to_string())).to_string()
+                                on:click=move |_| {
+                                    room_msg(SizingMessage::Vote {size: num.to_string()});
+                                }
+                            >
+                                {num}
+                            </Button>
+                        }
+                    }).collect_view().into_any()
+                }}
+                <Show when=move || results_revealed.get()>
                     <div class="flex w-full justify-center gap-2 pt-2">
                         <Button
                             variant=ButtonVariant::Success

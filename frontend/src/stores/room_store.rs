@@ -47,20 +47,14 @@ impl RoomStore {
         self.rooms
     }
 
-    pub fn room_joined(
-        &self,
-        room_name: String,
-        hashed_password: String,
-        users: Vec<UserData>,
-        votes_cast: usize,
-    ) {
+    pub fn room_joined(&self, room_name: String, hashed_password: String, users: Vec<UserData>) {
         self.rooms.update(|rooms| {
             if !rooms.iter().any(|r| r.room_name == room_name) {
                 rooms.push(RoomStatus {
                     room_name,
                     hashed_password,
                     users,
-                    votes_cast,
+                    votes_cast: 0,
                     selected_user: None,
                 });
             }

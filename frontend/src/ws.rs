@@ -263,12 +263,11 @@ fn process_message(
             room_name,
             hashed_password,
             users,
-            votes_cast,
         } => {
             let user_ids: Vec<String> = users.iter().map(|u| u.user_id.clone()).collect();
             user_store.room_joined(&users);
-            vote_store.room_joined(&room_name, &user_ids, votes_cast);
-            room_store.room_joined(room_name, hashed_password, users, votes_cast);
+            vote_store.room_joined(&room_name, &user_ids);
+            room_store.room_joined(room_name, hashed_password, users);
         }
         ClientResponseMessage::UserJoined { room_name, user } => {
             user_store.user_updated(user.clone());
@@ -286,11 +285,13 @@ fn process_message(
             let own_id = user_store.own_user_id_untracked();
             vote_store.own_vote(&room_name, &own_id, size);
         }
-        ClientResponseMessage::VoteStatus { room_name, votes } => {
+        ClientResponseMessage::VoteStatus { room_name, votes, spectators } => {
             room_store.vote_status(&room_name, &votes);
             vote_store.vote_status(&room_name, &votes);
+            vote_store.set_spectators(&room_name, &spectators);
         }
         ClientResponseMessage::VoteResults { room_name, votes } => {
+            vote_store.mark_as_voters(&room_name, votes.keys().cloned());
             vote_store.vote_results(&room_name, &votes);
         }
         ClientResponseMessage::NewVote { room_name } => {
