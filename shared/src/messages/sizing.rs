@@ -9,4 +9,5 @@ pub enum SizingMessage {
     NewVote,
     Randomize,
     RegisterToVote,
+    RevokeVotingRights { target_id: String }
 }

@@ -57,6 +57,7 @@ impl RoomBehavior<SizingMessage> for SizingBehavior {
             SizingMessage::NewVote => self.new_vote(&user_id, room),
             SizingMessage::Randomize => self.randomize(room),
             SizingMessage::RegisterToVote => self.register_to_vote(user_id, room),
+            SizingMessage::RevokeVotingRights { target_id } => self.revoke_voting_rights(user_id, target_id, room),
         }
     }
 }
@@ -120,6 +121,19 @@ impl SizingBehavior {
     fn register_to_vote(&self, user_id: Arc<String>, room: &mut RoomState) {
         room.remove_spectator(user_id);
         self.send_vote_info(room)
+    }
+
+    fn revoke_voting_rights(&self, user_id: Arc<String>, target_id: String, room: &mut RoomState) {
+        let target_id = Arc::new(target_id);
+        if !room.contains_user(&target_id) {
+            room.notify_user(&user_id, ClientResponseMessage::Error { msg: "User not found.".to_string() });
+            return;
+        }
+        if room.is_spectator(&target_id) {
+            return;
+        }
+        room.add_spectator(target_id);
+        self.send_vote_info(room);
     }
 
     fn send_vote_info(&self, room: &RoomState) {
