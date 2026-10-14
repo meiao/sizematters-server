@@ -26,7 +26,7 @@ use crate::stores::{RoomStore, UserStore, VoteStore};
 use crate::ws;
 use icons::{Check, Eye, Link, RotateCcw, Shuffle};
 use leptos::prelude::*;
-use sizematters_shared::messages::SizingMessage;
+use sizematters_shared::messages::SizingRequestMessage;
 use sizematters_shared::UserData;
 
 /// Fibonacci-like vote values used in planning poker.
@@ -109,13 +109,13 @@ pub fn Room(room_name: String) -> impl IntoView {
     });
 
     let rn_room_msg = StoredValue::new(room_name.clone());
-    let room_msg = move |msg: SizingMessage| match serde_json::to_string(&msg) {
+    let room_msg = move |msg: SizingRequestMessage| match serde_json::to_string(&msg) {
         Ok(payload) => ws::ws_room_msg(rn_room_msg.get_value(), payload),
         Err(err) => log::warn!("Failed to serialize message: {}", err),
     };
 
     let on_revoke = Callback::new(move |target_id: String| {
-        room_msg(SizingMessage::RevokeVotingRights { target_id });
+        room_msg(SizingRequestMessage::RevokeVotingRights { target_id });
     });
 
     view! {
@@ -201,7 +201,7 @@ pub fn Room(room_name: String) -> impl IntoView {
                     view! {
                         <Button
                             on:click=move |_| {
-                                room_msg(SizingMessage::RegisterToVote);
+                                room_msg(SizingRequestMessage::RegisterToVote);
                             }
                         >
                             <Eye />
@@ -225,7 +225,7 @@ pub fn Room(room_name: String) -> impl IntoView {
                                 attr:aria-label=label
                                 attr:aria-pressed=move || (vote_val.get() == Some(num.to_string())).to_string()
                                 on:click=move |_| {
-                                    room_msg(SizingMessage::Vote {size: num.to_string()});
+                                    room_msg(SizingRequestMessage::Vote {size: num.to_string()});
                                 }
                             >
                                 {num}
@@ -238,7 +238,7 @@ pub fn Room(room_name: String) -> impl IntoView {
                         <Button
                             variant=ButtonVariant::Success
                             on:click=move |_| {
-                                room_msg(SizingMessage::NewVote);
+                                room_msg(SizingRequestMessage::NewVote);
                             }
                         >
                             <RotateCcw />
@@ -246,7 +246,7 @@ pub fn Room(room_name: String) -> impl IntoView {
                         </Button>
                         <Button
                             on:click=move |_| {
-                                room_msg(SizingMessage::Randomize);
+                                room_msg(SizingRequestMessage::Randomize);
                             }
                         >
                             <Shuffle />

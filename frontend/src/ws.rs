@@ -18,7 +18,9 @@
 
 use crate::stores::{RoomStore, UserStore, VoteStore};
 use leptos::prelude::*;
-use sizematters_shared::messages::{ClientRequestMessage, ClientResponseMessage};
+use sizematters_shared::messages::{
+    ClientRequestMessage, ClientResponseMessage, SizingResponseMessage,
+};
 use sizematters_shared::RoomType;
 use wasm_bindgen::prelude::*;
 use web_sys::WebSocket;
@@ -247,6 +249,39 @@ fn speak_selected_user(user_store: &UserStore, selected_user_id: &str) {
     }
 }
 
+/// Route a sizing-room payload carried inside a `RoomMessage`.
+fn process_sizing_message(
+    msg: SizingResponseMessage,
+    room_name: &str,
+    room_store: RoomStore,
+    user_store: UserStore,
+    vote_store: VoteStore,
+    last_error: RwSignal<Option<String>>,
+) {
+    match msg {
+        SizingResponseMessage::OwnVote { size } => {
+            let own_id = user_store.own_user_id_untracked();
+            vote_store.own_vote(room_name, &own_id, size);
+        }
+        SizingResponseMessage::VoteStatus { votes, spectators } => {
+            room_store.vote_status(room_name, &votes);
+            vote_store.vote_status(room_name, &votes);
+            vote_store.set_spectators(room_name, &spectators);
+        }
+        SizingResponseMessage::VoteResults { votes } => {
+            vote_store.mark_as_voters(room_name, votes.keys().cloned());
+            vote_store.vote_results(room_name, &votes);
+        }
+        SizingResponseMessage::NewVote => {
+            room_store.new_vote(room_name);
+            vote_store.new_vote(room_name);
+        }
+        SizingResponseMessage::VotingOver => {
+            last_error.set(Some("Voting is already over.".to_string()));
+        }
+    }
+}
+
 /// Route an incoming server message to the appropriate stores.
 fn process_message(
     msg: ClientResponseMessage,
@@ -281,22 +316,13 @@ fn process_message(
         ClientResponseMessage::UserUpdated { user } => {
             user_store.user_updated(user);
         }
-        ClientResponseMessage::OwnVote { room_name, size } => {
-            let own_id = user_store.own_user_id_untracked();
-            vote_store.own_vote(&room_name, &own_id, size);
-        }
-        ClientResponseMessage::VoteStatus { room_name, votes, spectators } => {
-            room_store.vote_status(&room_name, &votes);
-            vote_store.vote_status(&room_name, &votes);
-            vote_store.set_spectators(&room_name, &spectators);
-        }
-        ClientResponseMessage::VoteResults { room_name, votes } => {
-            vote_store.mark_as_voters(&room_name, votes.keys().cloned());
-            vote_store.vote_results(&room_name, &votes);
-        }
-        ClientResponseMessage::NewVote { room_name } => {
-            room_store.new_vote(&room_name);
-            vote_store.new_vote(&room_name);
+        ClientResponseMessage::RoomMessage { room_name, payload } => {
+            match serde_json::from_str::<SizingResponseMessage>(&payload) {
+                Ok(msg) => process_sizing_message(
+                    msg, &room_name, room_store, user_store, vote_store, last_error,
+                ),
+                Err(err) => log::warn!("Failed to parse room message: {}", err),
+            }
         }
         ClientResponseMessage::Randomized {
             room_name,
@@ -320,9 +346,6 @@ fn process_message(
         }
         ClientResponseMessage::CannotJoinMultipleRooms => {
             last_error.set(Some("You can only be in one room at a time.".to_string()));
-        }
-        ClientResponseMessage::VotingOver => {
-            last_error.set(Some("Voting is already over.".to_string()));
         }
         ClientResponseMessage::Error { msg } => {
             last_error.set(Some(msg));

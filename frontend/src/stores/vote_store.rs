@@ -124,7 +124,10 @@ impl VoteStore {
     /// Replace the spectator set for a room with the authoritative list from VoteStatus.
     pub fn set_spectators(&self, room_name: &str, spectator_ids: &[String]) {
         self.spectators.update(|spectators| {
-            spectators.insert(room_name.to_string(), spectator_ids.iter().cloned().collect());
+            spectators.insert(
+                room_name.to_string(),
+                spectator_ids.iter().cloned().collect(),
+            );
         });
     }
 
