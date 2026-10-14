@@ -22,6 +22,9 @@ pub fn Label(
         class
     );
 
+    // An empty `for=""` stops the label from activating its nested control.
+    let html_for = (!html_for.is_empty()).then_some(html_for);
+
     view! {
         <label class=class r#for=html_for>
             {children()}

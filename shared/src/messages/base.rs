@@ -60,22 +60,6 @@ pub enum ClientResponseMessage {
     OwnData {
         user: UserData,
     },
-    OwnVote {
-        room_name: String,
-        size: String,
-    },
-    VoteStatus {
-        room_name: String,
-        votes: HashMap<String, bool>,
-        spectators: Vec<String>,
-    },
-    VoteResults {
-        room_name: String,
-        votes: HashMap<String, String>,
-    },
-    NewVote {
-        room_name: String,
-    },
     AlreadyInRoom {
         room_name: String,
     },
@@ -87,8 +71,11 @@ pub enum ClientResponseMessage {
         selected_user_id: String,
     },
     InvalidRoomName,
-    VotingOver,
     CannotJoinMultipleRooms,
+    RoomMessage {
+        room_name: String,
+        payload: String,
+    },
     Error {
         msg: String,
     },

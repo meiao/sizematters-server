@@ -112,7 +112,6 @@ impl<T: DeserializeOwned + 'static> Room<T> {
             let msg = ClientResponseMessage::WrongPassword { room_name };
             self.state.send_to_user(&user_id, &recipient, msg);
         } else {
-
             let connection_info = ConnectionInfo {
                 user: UserInfo::from(user.clone()),
                 recipient,
@@ -170,7 +169,9 @@ impl<T: DeserializeOwned + 'static> Room<T> {
 
     fn process_message(&mut self, user_id: Arc<String>, payload: String) {
         match serde_json::from_str::<T>(payload.as_str()) {
-            Ok(msg) => self.behavior.on_specific_message(user_id, msg, &mut self.state),
+            Ok(msg) => self
+                .behavior
+                .on_specific_message(user_id, msg, &mut self.state),
             Err(_) => self.state.notify_user(
                 &user_id,
                 ClientResponseMessage::Error {
@@ -251,17 +252,20 @@ impl RoomState {
     pub(super) fn remove_spectator(&mut self, user_id: Arc<String>) {
         self.spectators.remove(&user_id);
     }
-    
+
     pub(super) fn add_spectator(&mut self, user_id: Arc<String>) {
         self.spectators.insert(user_id);
     }
-    
+
     pub(super) fn spectator_count(&self) -> usize {
         self.spectators.len()
     }
 
     pub(super) fn spectators(&self) -> Vec<String> {
-        self.spectators.iter().map(|user_id| (**user_id).clone()).collect()
+        self.spectators
+            .iter()
+            .map(|user_id| (**user_id).clone())
+            .collect()
     }
 
     fn send_to_user(

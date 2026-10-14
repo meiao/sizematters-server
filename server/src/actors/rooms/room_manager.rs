@@ -207,7 +207,7 @@ impl RoomManagerActor {
     fn user_left(&mut self, user_id: Arc<String>) {
         let room_name = self.user_room_map.remove(&user_id);
         match room_name {
-            None => println!("RoomManager: User left, but no record of his room exists."),
+            None => {},
             Some(room) => self.leave_room(user_id.clone(), room),
         }
     }
@@ -215,9 +215,7 @@ impl RoomManagerActor {
     fn user_updated(&mut self, user: UserData) {
         let room_name = self.user_room_map.get(&user.user_id);
         match room_name {
-            None => println!(
-                "RoomManager: User tried to update his info, but no record of his room exists."
-            ),
+            None => {},
             Some(room) => self.notify_room(room, RoomMessages::UserUpdated { user }),
         }
     }

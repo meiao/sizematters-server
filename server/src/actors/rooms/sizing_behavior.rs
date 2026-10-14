@@ -18,7 +18,9 @@
 
 use crate::actors::rooms::room::{RoomBehavior, RoomState};
 use rand::RngExt;
-use sizematters_shared::messages::{ClientRequestMessage, ClientResponseMessage, SizingMessage};
+use sizematters_shared::messages::{
+    ClientRequestMessage, ClientResponseMessage, SizingRequestMessage, SizingResponseMessage,
+};
 use std::collections::HashMap;
 use std::sync::Arc;
 
@@ -36,7 +38,7 @@ impl SizingBehavior {
     }
 }
 
-impl RoomBehavior<SizingMessage> for SizingBehavior {
+impl RoomBehavior<SizingRequestMessage> for SizingBehavior {
     fn on_join_room(&mut self, user_id: &Arc<String>, room: &mut RoomState) {
         room.notify_user(user_id, self.vote_status(room));
         if self.voting_over {
@@ -49,13 +51,20 @@ impl RoomBehavior<SizingMessage> for SizingBehavior {
         self.send_vote_info(room);
     }
 
-    fn on_specific_message(&mut self, user_id: Arc<String>, msg: SizingMessage, room: &mut RoomState) {
+    fn on_specific_message(
+        &mut self,
+        user_id: Arc<String>,
+        msg: SizingRequestMessage,
+        room: &mut RoomState,
+    ) {
         match msg {
-            SizingMessage::Vote { size } => self.vote(user_id, size, room),
-            SizingMessage::NewVote => self.new_vote(&user_id, room),
-            SizingMessage::Randomize => self.randomize(room),
-            SizingMessage::RegisterToVote => self.register_to_vote(user_id, room),
-            SizingMessage::RevokeVotingRights { target_id } => self.revoke_voting_rights(user_id, target_id, room),
+            SizingRequestMessage::Vote { size } => self.vote(user_id, size, room),
+            SizingRequestMessage::NewVote => self.new_vote(&user_id, room),
+            SizingRequestMessage::Randomize => self.randomize(room),
+            SizingRequestMessage::RegisterToVote => self.register_to_vote(user_id, room),
+            SizingRequestMessage::RevokeVotingRights { target_id } => {
+                self.revoke_voting_rights(user_id, target_id, room)
+            }
         }
     }
 }
@@ -68,19 +77,27 @@ impl SizingBehavior {
         }
 
         if self.voting_over {
-            room.notify_user(&user_id, ClientResponseMessage::VotingOver);
+            room.notify_user(
+                &user_id,
+                Self::room_msg(room.room_name(), SizingResponseMessage::VotingOver),
+            );
             return;
         }
 
         if room.is_spectator(&user_id) {
-            room.notify_user(&user_id, ClientResponseMessage::Error { msg: "You must register to vote to be able to vote".to_string() });
+            room.notify_user(
+                &user_id,
+                ClientResponseMessage::Error {
+                    msg: "You must register to vote to be able to vote".to_string(),
+                },
+            );
             return;
         }
 
-        let msg = ClientResponseMessage::OwnVote {
-            room_name: room.room_name(),
-            size: size.clone(),
-        };
+        let msg = Self::room_msg(
+            room.room_name(),
+            SizingResponseMessage::OwnVote { size: size.clone() },
+        );
         room.notify_user(&user_id, msg);
 
         let already_voted = self.vote_map.insert(user_id, size).is_some();
@@ -98,9 +115,9 @@ impl SizingBehavior {
         self.vote_map.clear();
         self.voting_over = false;
 
-        room.notify_users(ClientResponseMessage::NewVote {
-            room_name: room.room_name(),
-        });
+        let room_name = room.room_name();
+        let msg = Self::room_msg(room_name.clone(), SizingResponseMessage::NewVote);
+        room.notify_users(msg);
     }
 
     fn randomize(&self, room: &RoomState) {
@@ -122,10 +139,20 @@ impl SizingBehavior {
         self.send_vote_info(room)
     }
 
-    fn revoke_voting_rights(&mut self, user_id: Arc<String>, target_id: String, room: &mut RoomState) {
+    fn revoke_voting_rights(
+        &mut self,
+        user_id: Arc<String>,
+        target_id: String,
+        room: &mut RoomState,
+    ) {
         let target_id = Arc::new(target_id);
         if !room.contains_user(&target_id) {
-            room.notify_user(&user_id, ClientResponseMessage::Error { msg: "User not found.".to_string() });
+            room.notify_user(
+                &user_id,
+                ClientResponseMessage::Error {
+                    msg: "User not found.".to_string(),
+                },
+            );
             return;
         }
         if room.is_spectator(&target_id) {
@@ -147,28 +174,42 @@ impl SizingBehavior {
     }
 
     fn vote_status(&self, room: &RoomState) -> ClientResponseMessage {
-        let room_name = room.room_name();
         let votes: HashMap<String, bool> = room
             .user_ids()
             .filter(|user_id| !room.is_spectator(&user_id))
             .map(|user_id| ((**user_id).clone(), self.vote_map.contains_key(user_id)))
             .collect();
         let spectators = room.spectators();
-        ClientResponseMessage::VoteStatus { room_name, votes, spectators }
+        Self::room_msg(
+            room.room_name(),
+            SizingResponseMessage::VoteStatus { votes, spectators },
+        )
     }
 
     fn vote_results(&self, room: &RoomState) -> ClientResponseMessage {
-        let room_name = room.room_name();
         let votes: HashMap<String, String> = self
             .vote_map
             .iter()
             .map(|(user_id, size)| ((**user_id).clone(), size.clone()))
             .collect();
-        ClientResponseMessage::VoteResults { room_name, votes }
+        Self::room_msg(
+            room.room_name(),
+            SizingResponseMessage::VoteResults { votes },
+        )
     }
 
     fn all_voted(&self, room: &RoomState) -> bool {
         let active_user_count = room.user_count() - room.spectator_count();
         active_user_count > 0 && self.vote_map.len() == active_user_count
+    }
+
+    fn room_msg(room_name: String, msg: SizingResponseMessage) -> ClientResponseMessage {
+        if let Ok(payload) = serde_json::to_string(&msg) {
+            ClientResponseMessage::RoomMessage { room_name, payload }
+        } else {
+            ClientResponseMessage::Error {
+                msg: "This is awkward. I was not able to serialize a message.".to_string(),
+            }
+        }
     }
 }
