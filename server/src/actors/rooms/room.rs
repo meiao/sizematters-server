@@ -20,7 +20,7 @@ use crate::actors::messages::RoomMessages;
 use actix::{Actor, ActorContext, Context, Handler, Recipient};
 use serde::de::DeserializeOwned;
 use sizematters_shared::messages::ClientResponseMessage;
-use sizematters_shared::UserData;
+use sizematters_shared::{RoomType, UserData};
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 
@@ -52,6 +52,7 @@ impl<T: 'static> Room<T> {
         password: Arc<String>,
         password_is_hash: bool,
         room_manager: Recipient<RoomMessages>,
+        room_type: RoomType,
         behavior: Box<dyn RoomBehavior<T>>,
     ) -> Self {
         Room {
@@ -62,6 +63,7 @@ impl<T: 'static> Room<T> {
                 user_map: HashMap::new(),
                 spectators: HashSet::new(),
                 room_manager,
+                room_type,
             },
         }
     }
@@ -122,6 +124,7 @@ impl<T: DeserializeOwned + 'static> Room<T> {
             let join_msg = ClientResponseMessage::RoomJoined {
                 room_name: self.state.room_name(),
                 hashed_password: self.state.hashed_password(),
+                room_type: self.state.room_type,
                 users: self.state.users(),
             };
             self.state.notify_user(&user_id, join_msg);
@@ -202,6 +205,7 @@ pub(super) struct RoomState {
     user_map: HashMap<Arc<String>, ConnectionInfo>,
     spectators: HashSet<Arc<String>>,
     room_manager: Recipient<RoomMessages>,
+    room_type: RoomType,
 }
 
 impl RoomState {
