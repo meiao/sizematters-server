@@ -19,14 +19,11 @@
 use crate::components::dialogs::{PromptDialog, RoomDialog, RoomDialogAction};
 use crate::components::ui::avatar::{Avatar, AvatarFallback, AvatarImage, AvatarSize};
 use crate::components::ui::button::{Button, ButtonSize, ButtonVariant};
-use crate::components::ui::card::{
-    Card, CardAction, CardDescription, CardHeader, CardSize, CardTitle,
-};
+use crate::components::ui::card::{Card, CardAction, CardHeader, CardSize, CardTitle};
 use crate::stores::{JyankenStore, RoomStore, UserStore, VoteStore};
 use crate::ws;
 use icons::{Plus, UserPen};
 use leptos::prelude::*;
-use sizematters_shared::RoomType;
 
 #[component]
 pub fn MainMenu() -> impl IntoView {
@@ -157,24 +154,7 @@ pub fn MainMenu() -> impl IntoView {
                         <Card size=CardSize::Sm>
                             <CardHeader class="grid grid-cols-[minmax(0,1fr)_auto]">
                                 <CardTitle class="truncate text-base">{rn}</CardTitle>
-                                <CardDescription>
-                                    {
-                                        let name = room.room_name.clone();
-                                        match room.room_type {
-                                            RoomType::Sizing => format!(
-                                                "Voting: {}/{}",
-                                                room.votes_cast,
-                                                room.users.len().saturating_sub(vote_store.spectator_count(&name)),
-                                            ),
-                                            RoomType::Jyanken => format!(
-                                                "Shot: {}/{}",
-                                                room.votes_cast,
-                                                room.users.len().saturating_sub(jyanken_store.state(&name).spectators.len()),
-                                            ),
-                                        }
-                                    }
-                                </CardDescription>
-                                <CardAction class="col-start-2 row-span-2 row-start-1 self-center">
+                                <CardAction class="col-start-2 row-start-1 self-center">
                                     <Button
                                         variant=ButtonVariant::Outline
                                         size=ButtonSize::Sm

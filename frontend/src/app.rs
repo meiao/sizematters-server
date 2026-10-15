@@ -77,6 +77,9 @@ fn MenuRouter() -> impl IntoView {
 
     let connected = Memo::new(move |_| ws_ctx.is_connected());
 
+    // Connect as soon as the app loads. This also restores any rooms saved in localStorage.
+    Effect::new(move |_| ws_ctx.connect());
+
     // Navigate to /main once the connection succeeds. This lives here, in a
     // component that stays mounted regardless of connection state, rather than
     // inside `NoMenu` — `NoMenu` gets unmounted by the `<Show>` below the

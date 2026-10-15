@@ -36,7 +36,7 @@ pub(super) trait RoomBehavior<T> {
     fn on_leave_room(&mut self, user_id: &Arc<String>, room: &mut RoomState);
 
     /// Called when the last user left and the room is about to stop.
-    fn on_room_closing(&mut self, room: &mut RoomState) {}
+    fn on_room_closing(&mut self, _room: &mut RoomState) {}
 
     fn on_specific_message(&mut self, user_id: Arc<String>, msg: T, room: &mut RoomState);
 }

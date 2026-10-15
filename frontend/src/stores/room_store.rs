@@ -18,7 +18,6 @@
 
 use leptos::prelude::*;
 use sizematters_shared::{RoomType, UserData};
-use std::collections::HashMap;
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct RoomStatus {
@@ -26,7 +25,6 @@ pub struct RoomStatus {
     pub hashed_password: String,
     pub room_type: RoomType,
     pub users: Vec<UserData>,
-    pub votes_cast: usize,
     /// The user selected by the randomizer, if any.
     pub selected_user: Option<String>,
 }
@@ -62,7 +60,6 @@ impl RoomStore {
                     hashed_password,
                     room_type,
                     users,
-                    votes_cast: 0,
                     selected_user: None,
                 });
             }
@@ -87,19 +84,10 @@ impl RoomStore {
         });
     }
 
-    pub fn vote_status(&self, room_name: &str, votes: &HashMap<String, bool>) {
-        self.rooms.update(|rooms| {
-            if let Some(room) = rooms.iter_mut().find(|r| r.room_name == room_name) {
-                room.votes_cast = votes.values().filter(|&&v| v).count();
-            }
-        });
-    }
-
     /// Reset room state for a new voting round.
     pub fn new_vote(&self, room_name: &str) {
         self.rooms.update(|rooms| {
             if let Some(room) = rooms.iter_mut().find(|r| r.room_name == room_name) {
-                room.votes_cast = 0;
                 room.selected_user = None;
             }
         });

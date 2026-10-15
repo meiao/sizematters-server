@@ -1,6 +1,5 @@
 use crate::{RoomType, UserData};
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
 
 /// Messages sent from the client to the server.
 #[derive(Serialize, Deserialize, Clone, Debug)]

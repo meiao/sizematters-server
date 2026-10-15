@@ -19,6 +19,7 @@
 mod app;
 mod components;
 mod pages;
+mod room_storage;
 mod stores;
 mod ws;
 

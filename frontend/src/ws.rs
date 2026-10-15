@@ -16,6 +16,7 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
+use crate::room_storage;
 use crate::stores::{JyankenStore, RoomStore, UserStore, VoteStore};
 use leptos::prelude::*;
 use sizematters_shared::messages::jyanken::JyankenResponseMessage;
@@ -80,15 +81,17 @@ impl WsContext {
         self.last_error.set(None);
     }
 
-    /// Open a WebSocket connection. Guards against duplicate calls.
+    /// Open a WebSocket connection. Guards against duplicate calls, including calls made
+    /// while a previous attempt is still connecting.
     pub fn connect(&self) {
         self.initiated.set(true);
 
         // Prevent duplicate connections
         let already_connected = SOCKET.with(|s| s.borrow().is_some());
-        if already_connected || self.connected.get_untracked() {
+        if already_connected || self.connected.get_untracked() || CONNECTING.get() {
             return;
         }
+        CONNECTING.set(true);
 
         let location = web_sys::window().unwrap().location();
         let protocol = location.protocol().unwrap();
@@ -100,6 +103,7 @@ impl WsContext {
             Ok(s) => s,
             Err(err) => {
                 log::error!("Failed to create WebSocket: {:?}", err);
+                CONNECTING.set(false);
                 self.last_error
                     .set(Some("Failed to connect to server.".to_string()));
                 schedule_reconnect(*self);
@@ -121,6 +125,7 @@ impl WsContext {
         // onopen
         let onopen = Closure::<dyn Fn()>::new(move || {
             log::info!("WebSocket connected");
+            CONNECTING.set(false);
             connected.set(true);
             registered.set(false);
             RECONNECT_ATTEMPTS.with(|a| a.set(0));
@@ -156,6 +161,7 @@ impl WsContext {
         let ctx = *self;
         let onclose = Closure::<dyn Fn()>::new(move || {
             log::info!("WebSocket disconnected");
+            CONNECTING.set(false);
             ctx.connected.set(false);
             SOCKET.with(|s| {
                 *s.borrow_mut() = None;
@@ -175,8 +181,10 @@ impl WsContext {
 }
 
 thread_local! {
-    static SOCKET: std::cell::RefCell<Option<WebSocket>> = std::cell::RefCell::new(None);
-    static RECONNECT_ATTEMPTS: std::cell::Cell<u32> = std::cell::Cell::new(0);
+    /// Whether a socket has been created but has not opened (or failed) yet.
+    static CONNECTING: std::cell::Cell<bool> = const { std::cell::Cell::new(false) };
+    static SOCKET: std::cell::RefCell<Option<WebSocket>> = const { std::cell::RefCell::new(None) };
+    static RECONNECT_ATTEMPTS: std::cell::Cell<u32> = const { std::cell::Cell::new(0) };
 }
 
 const MAX_RECONNECT_ATTEMPTS: u32 = 5;
@@ -242,6 +250,14 @@ fn restore_data() {
         if let Ok(Some(avatar)) = storage.get_item("avatar") {
             send_message(ClientRequestMessage::SetAvatar { avatar });
         }
+        restore_rooms();
+    }
+}
+
+/// Recreate (or join, if it still exists) every room saved in localStorage.
+fn restore_rooms() {
+    for room in room_storage::saved_rooms() {
+        ws_create_room(room.room_name, room.hashed_password, true, room.room_type);
     }
 }
 
@@ -278,7 +294,6 @@ fn process_sizing_message(
             vote_store.own_vote(room_name, &own_id, size);
         }
         SizingResponseMessage::VoteStatus { votes, spectators } => {
-            room_store.vote_status(room_name, &votes);
             vote_store.vote_status(room_name, &votes);
             vote_store.set_spectators(room_name, &spectators);
         }
@@ -312,7 +327,6 @@ fn process_jyanken_message(
             selected,
             spectators,
         } => {
-            room_store.vote_status(room_name, &selected);
             jyanken_store.game_status(room_name, selected, spectators);
         }
         JyankenResponseMessage::GameResults {
@@ -352,6 +366,7 @@ fn process_message(
             user_store.room_joined(&users);
             vote_store.room_joined(&room_name, &user_ids);
             jyanken_store.room_joined(&room_name, &user_ids);
+            room_storage::save_room(&room_name, &hashed_password, room_type);
             room_store.room_joined(room_name, hashed_password, room_type, users);
         }
         ClientResponseMessage::UserJoined { room_name, user } => {
@@ -480,6 +495,7 @@ pub fn ws_create_room(
 }
 
 pub fn ws_leave_room(room_name: String) {
+    room_storage::forget_room(&room_name);
     send_message(ClientRequestMessage::LeaveRoom { room_name });
 }
 

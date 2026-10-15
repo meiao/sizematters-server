@@ -218,7 +218,7 @@ impl ClientActor {
         let msg = RoomMessages::SpecificMessage {
             user_id: Arc::new(self.user.user_id.clone()),
             room_name: Arc::new(room_name),
-            payload: payload,
+            payload,
         };
         self.room_manager.do_send(msg);
     }
@@ -254,7 +254,7 @@ impl Handler<ClientResponseMessage> for ClientActor {
             Ok(msg) => ctx.text(msg),
             Err(err) => println!(
                 "ClientActor: error sending data back to user: {}. Error: {}",
-                &self.user.user_id, err
+                self.user.user_id, err
             ),
         }
     }
