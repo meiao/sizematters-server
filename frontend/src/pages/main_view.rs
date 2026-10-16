@@ -16,6 +16,7 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
+use crate::components::rooms::jyanken::JyankenRoom;
 use crate::components::rooms::sizing::Room;
 use crate::components::ui::alert::{Alert, AlertDescription, AlertTitle};
 use crate::components::ui::button::{Button, ButtonSize, ButtonVariant};
@@ -26,6 +27,7 @@ use crate::stores::{RoomStore, UserStore};
 use crate::ws::WsContext;
 use icons::{ArrowLeft, CircleAlert, Sparkles, X};
 use leptos::prelude::*;
+use sizematters_shared::RoomType;
 
 #[component]
 pub fn MainPage() -> impl IntoView {
@@ -97,7 +99,10 @@ pub fn MainPage() -> impl IntoView {
             >
                 {
                     let rn = room.room_name.clone();
-                    view! { <Room room_name=rn /> }
+                    match room.room_type {
+                        RoomType::Sizing => view! { <Room room_name=rn /> }.into_any(),
+                        RoomType::Jyanken => view! { <JyankenRoom room_name=rn /> }.into_any(),
+                    }
                 }
             </For>
 

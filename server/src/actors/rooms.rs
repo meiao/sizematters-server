@@ -16,6 +16,7 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
+mod jyanken_behavior;
 mod room;
 mod room_manager;
 mod sizing_behavior;

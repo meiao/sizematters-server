@@ -1,4 +1,5 @@
 use crate::actors::messages::RoomMessages;
+use crate::actors::rooms::jyanken_behavior::JyankenBehavior;
 use crate::actors::rooms::room::Room;
 use crate::actors::rooms::sizing_behavior::SizingBehavior;
 use actix::{Actor, Recipient};
@@ -18,9 +19,20 @@ pub(super) fn create(
             password,
             password_is_hash,
             room_manager,
+            room_type,
             Box::new(SizingBehavior::new()),
-        ),
+        )
+        .start()
+        .recipient(),
+        RoomType::Jyanken => Room::new(
+            room_name,
+            password,
+            password_is_hash,
+            room_manager,
+            room_type,
+            Box::new(JyankenBehavior::new()),
+        )
+        .start()
+        .recipient(),
     }
-    .start()
-    .recipient()
 }

@@ -47,6 +47,7 @@ impl UserData {
 #[derive(Serialize, Deserialize, Clone, Copy, Debug, Hash, Eq, PartialEq, EnumIter)]
 pub enum RoomType {
     Sizing,
+    Jyanken,
 }
 
 impl RoomType {
@@ -54,6 +55,7 @@ impl RoomType {
     pub fn display_name(&self) -> &'static str {
         match self {
             RoomType::Sizing => "Sizing",
+            RoomType::Jyanken => "Jyanken (Rock Paper Scissor)",
         }
     }
 }

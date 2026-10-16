@@ -22,16 +22,18 @@ use crate::components::ui::button::{Button, ButtonSize, ButtonVariant};
 use crate::components::ui::card::{
     Card, CardAction, CardDescription, CardHeader, CardSize, CardTitle,
 };
-use crate::stores::{RoomStore, UserStore, VoteStore};
+use crate::stores::{JyankenStore, RoomStore, UserStore, VoteStore};
 use crate::ws;
 use icons::{Plus, UserPen};
 use leptos::prelude::*;
+use sizematters_shared::RoomType;
 
 #[component]
 pub fn MainMenu() -> impl IntoView {
     let user_store = expect_context::<UserStore>();
     let room_store = expect_context::<RoomStore>();
     let vote_store = expect_context::<VoteStore>();
+    let jyanken_store = expect_context::<JyankenStore>();
 
     let show_name_dialog = RwSignal::new(false);
     let show_email_dialog = RwSignal::new(false);
@@ -156,7 +158,21 @@ pub fn MainMenu() -> impl IntoView {
                             <CardHeader class="grid grid-cols-[minmax(0,1fr)_auto]">
                                 <CardTitle class="truncate text-base">{rn}</CardTitle>
                                 <CardDescription>
-                                    "Voting: " {room.votes_cast} "/" {room.users.len().saturating_sub(vote_store.spectator_count(&room.room_name))}
+                                    {
+                                        let name = room.room_name.clone();
+                                        match room.room_type {
+                                            RoomType::Sizing => format!(
+                                                "Voting: {}/{}",
+                                                room.votes_cast,
+                                                room.users.len().saturating_sub(vote_store.spectator_count(&name)),
+                                            ),
+                                            RoomType::Jyanken => format!(
+                                                "Shot: {}/{}",
+                                                room.votes_cast,
+                                                room.users.len().saturating_sub(jyanken_store.state(&name).spectators.len()),
+                                            ),
+                                        }
+                                    }
                                 </CardDescription>
                                 <CardAction class="col-start-2 row-span-2 row-start-1 self-center">
                                     <Button
@@ -166,6 +182,7 @@ pub fn MainMenu() -> impl IntoView {
                                             ws::ws_leave_room(rn2.clone());
                                             room_store.leave_room(&rn2);
                                             vote_store.leave_room(&rn2);
+                                            jyanken_store.leave_room(&rn2);
                                         }
                                     >
                                         "Leave"
