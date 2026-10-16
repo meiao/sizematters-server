@@ -19,7 +19,7 @@
 use crate::actors::rooms::room::{RoomBehavior, RoomState};
 use rand::RngExt;
 use sizematters_shared::messages::{
-    ClientRequestMessage, ClientResponseMessage, SizingRequestMessage, SizingResponseMessage,
+    ClientResponseMessage, SizingRequestMessage, SizingResponseMessage,
 };
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -176,7 +176,7 @@ impl SizingBehavior {
     fn vote_status(&self, room: &RoomState) -> ClientResponseMessage {
         let votes: HashMap<String, bool> = room
             .user_ids()
-            .filter(|user_id| !room.is_spectator(&user_id))
+            .filter(|user_id| !room.is_spectator(user_id))
             .map(|user_id| ((**user_id).clone(), self.vote_map.contains_key(user_id)))
             .collect();
         let spectators = room.spectators();

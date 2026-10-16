@@ -16,40 +16,20 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-use crate::components::ui::button::{Button, ButtonSize};
-use crate::ws::WsContext;
-use icons::{DoorOpen, LoaderCircle};
+use icons::LoaderCircle;
 use leptos::prelude::*;
 
-/// Shown in the sidebar when not connected. Clicking "Enter" initiates the WebSocket connection.
+/// Shown in the sidebar while the WebSocket connection is being established.
 ///
-/// The actual "navigate to /main once connected" and "error on timeout" logic
-/// lives in `MenuRouter` (app.rs), which stays mounted across the swap from
-/// `NoMenu` to `MainMenu` — this component gets unmounted the instant the
-/// connection succeeds, so it must not be the thing reacting to that event.
+/// The connection itself is started, and the "navigate to /main once connected" and "error on
+/// timeout" logic lives, in `MenuRouter` (app.rs), which stays mounted across the swap from
+/// `NoMenu` to `MainMenu`.
 #[component]
 pub fn NoMenu() -> impl IntoView {
-    let ws = expect_context::<WsContext>();
-    let initiated = Memo::new(move |_| ws.is_initiated());
-
-    let on_enter = move |_| {
-        ws.connect();
-    };
-
     view! {
-        <Show
-            when=move || initiated.get()
-            fallback=move || view! {
-                <Button size=ButtonSize::Lg class="w-full" on:click=on_enter>
-                    <DoorOpen />
-                    "Enter"
-                </Button>
-            }
-        >
-            <p class="flex items-center justify-center gap-2 text-sm text-muted-foreground" role="status">
-                <LoaderCircle class="size-4 animate-spin" />
-                "Connecting..."
-            </p>
-        </Show>
+        <p class="flex items-center justify-center gap-2 text-sm text-muted-foreground" role="status">
+            <LoaderCircle class="size-4 animate-spin" />
+            "Connecting..."
+        </p>
     }
 }

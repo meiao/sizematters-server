@@ -154,11 +154,6 @@ impl VoteStore {
         })
     }
 
-    pub fn spectator_count(&self, room_name: &str) -> usize {
-        self.spectators
-            .with(|spectators| spectators.get(room_name).map(|s| s.len()).unwrap_or(0))
-    }
-
     pub fn own_vote(&self, room_name: &str, user_id: &str, size: String) {
         self.votes.update(|votes| {
             if let Some(room_votes) = votes.get_mut(room_name) {

@@ -186,7 +186,7 @@ impl JyankenBehavior {
         let scoreboard = self
             .score
             .iter()
-            .map(|(user, score)| ((**user).clone(), score.clone()))
+            .map(|(user, score)| ((**user).clone(), *score))
             .collect();
         Self::room_msg(
             room.room_name(),
@@ -204,7 +204,7 @@ impl JyankenBehavior {
         }
 
         for (user, weapon) in &self.weapon_map {
-            let wins = Self::calculate_wins(&weapon, &weapon_count);
+            let wins = Self::calculate_wins(weapon, &weapon_count);
             match self.score.get(user) {
                 None => self.score.insert(user.clone(), (wins, wins)),
                 Some((_, total_wins)) => self.score.insert(user.clone(), (wins, wins + total_wins)),

@@ -155,18 +155,22 @@ impl RoomManagerActor {
     ) {
         let user_id = &user.user_id;
         if !self.room_name_validator.is_match(&room_name) {
-            self.notify_user(&user_id, &recipient, ClientResponseMessage::InvalidRoomName);
+            self.notify_user(user_id, &recipient, ClientResponseMessage::InvalidRoomName);
             return;
         }
 
+        // Creating a room that already exists joins it instead. This lets clients restore
+        // their saved rooms without knowing whether those rooms are still alive.
         if self.rooms.contains_key(&room_name) {
-            self.notify_user(
-                &user_id,
-                &recipient,
-                ClientResponseMessage::Error {
-                    msg: "You are already in this room.".to_string(),
-                },
-            );
+            let user_id = user.user_id.clone();
+            let join_msg = RoomMessages::JoinRoom {
+                room_name: room_name.clone(),
+                password,
+                password_is_hash,
+                user,
+                recipient: recipient.clone(),
+            };
+            self.join_room(room_name, user_id, recipient, join_msg, ctx);
             return;
         }
         let room_manager = ctx.address().recipient();
@@ -198,7 +202,7 @@ impl RoomManagerActor {
         match self.rooms.get(&room_name) {
             None => println!(
                 "RoomManager: {} tried to exit {} which does not exist",
-                &user_id, &room_name
+                user_id, room_name
             ),
             Some(room) => room.do_send(RoomMessages::LeaveRoom { user_id, room_name }),
         }
