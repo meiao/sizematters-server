@@ -23,7 +23,7 @@ use actix::prelude::*;
 use actix::Actor;
 use regex::Regex;
 use sizematters_shared::messages::ClientResponseMessage;
-use sizematters_shared::{RoomType, UserData};
+use sizematters_shared::UserData;
 use std::collections::HashMap;
 use std::sync::Arc;
 
@@ -53,23 +53,8 @@ impl Handler<RoomMessages> for RoomManagerActor {
 
     fn handle(&mut self, msg: RoomMessages, ctx: &mut Context<Self>) -> Self::Result {
         match msg {
-            RoomMessages::CreateRoom {
-                room_name,
-                password,
-                password_is_hash,
-                room_type,
-                user,
-                recipient,
-            } => {
-                self.create_room(
-                    room_name,
-                    password,
-                    password_is_hash,
-                    room_type,
-                    user,
-                    recipient,
-                    ctx,
-                );
+            RoomMessages::CreateRoom { .. } => {
+                self.create_room(msg, ctx);
             }
             RoomMessages::JoinRoom {
                 ref room_name,
@@ -143,16 +128,18 @@ impl RoomManagerActor {
         }
     }
 
-    fn create_room(
-        &mut self,
-        room_name: Arc<String>,
-        password: Arc<String>,
-        password_is_hash: bool,
-        room_type: RoomType,
-        user: UserData,
-        recipient: Recipient<ClientResponseMessage>,
-        ctx: &mut Context<Self>,
-    ) {
+    fn create_room(&mut self, create_room_msg: RoomMessages, ctx: &mut Context<Self>) {
+        let RoomMessages::CreateRoom {
+            room_name,
+            password,
+            password_is_hash,
+            room_type,
+            user,
+            recipient,
+        } = create_room_msg
+        else {
+            return;
+        };
         let user_id = &user.user_id;
         if !self.room_name_validator.is_match(&room_name) {
             self.notify_user(user_id, &recipient, ClientResponseMessage::InvalidRoomName);
