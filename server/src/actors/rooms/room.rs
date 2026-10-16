@@ -306,6 +306,7 @@ struct UserInfo {
     user_id: Arc<String>,
     name: Arc<String>,
     gravatar_id: Arc<String>,
+    avatar: Arc<String>,
 }
 
 impl From<UserData> for UserInfo {
@@ -314,6 +315,7 @@ impl From<UserData> for UserInfo {
             user_id: Arc::new(user.user_id),
             name: Arc::new(user.name),
             gravatar_id: Arc::new(user.gravatar_id),
+            avatar: Arc::new(user.avatar),
         }
     }
 }
@@ -324,6 +326,7 @@ impl From<&UserInfo> for UserData {
             user_id: (*user.user_id).clone(),
             name: (*user.name).clone(),
             gravatar_id: (*user.gravatar_id).clone(),
+            avatar: (*user.avatar).clone(),
         }
     }
 }

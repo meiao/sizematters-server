@@ -27,6 +27,7 @@ use std::sync::Arc;
 use std::time::Duration;
 use std::time::Instant;
 use uuid::Uuid;
+use crate::avatar;
 
 /// How often heartbeat pings are sent
 const HEARTBEAT_INTERVAL: Duration = Duration::from_secs(5);
@@ -46,9 +47,10 @@ pub struct ClientActor {
 impl ClientActor {
     pub fn new(room_manager: Addr<RoomManagerActor>) -> Self {
         let user_id = Uuid::new_v4().simple().to_string();
+        let avatar = avatar::default_avatar(&user_id);
         Self {
             last_heartbeat: Instant::now(),
-            user: UserData::new(user_id),
+            user: UserData::new(user_id, avatar),
             room_manager,
         }
     }

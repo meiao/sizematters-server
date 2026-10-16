@@ -16,6 +16,7 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
+pub mod avatar;
 pub mod messages;
 
 use serde::{Deserialize, Serialize};
@@ -26,16 +27,19 @@ pub struct UserData {
     pub user_id: String,
     pub name: String,
     pub gravatar_id: String,
+    pub avatar: String,
 }
 
 impl UserData {
-    pub fn new(user_id: String) -> UserData {
+    pub fn new(user_id: String, avatar: String) -> UserData {
         let name = "Shirtless Muppet".to_string();
         let gravatar_id = format!("{:x}", md5::compute(user_id.clone()));
+        
         UserData {
             user_id,
             name,
             gravatar_id,
+            avatar,
         }
     }
 
