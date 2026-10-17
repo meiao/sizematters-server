@@ -16,7 +16,7 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-use crate::components::gravatar::Gravatar;
+use crate::components::avatar::Avatar;
 use crate::components::ui::badge::{Badge, BadgeSize, BadgeVariant};
 use crate::components::ui::button::{Button, ButtonSize, ButtonVariant};
 use crate::components::ui::card::{
@@ -193,7 +193,7 @@ pub fn JyankenRoom(room_name: String) -> impl IntoView {
                                 >
                                     <div class="flex items-center gap-2">
                                         <div class="size-6 shrink-0 overflow-hidden rounded-full">
-                                            <Gravatar gravatar_id=user.gravatar_id.clone() />
+                                            <Avatar avatar=user.avatar.clone() />
                                         </div>
                                         <span class="truncate text-sm">{user.name.clone()}</span>
                                     </div>
@@ -212,7 +212,7 @@ pub fn JyankenRoom(room_name: String) -> impl IntoView {
                                 let uid_shot = user.user_id.clone();
                                 let uid_weapon = user.user_id.clone();
                                 let uid_score = user.user_id.clone();
-                                let gravatar_id = user.gravatar_id.clone();
+                                let avatar = user.avatar.clone();
                                 let name = user.name.clone();
                                 let has_shot = move || {
                                     state.get().selected.get(&uid_shot).copied().unwrap_or(false)
@@ -261,7 +261,7 @@ pub fn JyankenRoom(room_name: String) -> impl IntoView {
                                         </div>
                                         <div class="relative aspect-square overflow-hidden perspective-[1000px]">
                                             <div class="flip-face flip-front size-full">
-                                                <Gravatar gravatar_id=gravatar_id />
+                                                <Avatar avatar=avatar />
                                             </div>
                                             <div class="flip-face flip-back absolute inset-0 flex flex-col items-center justify-center gap-1 bg-card">
                                                 {move || weapon.get().map(|w| {

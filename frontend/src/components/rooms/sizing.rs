@@ -16,7 +16,7 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-use crate::components::gravatar::Gravatar;
+use crate::components::avatar::Avatar;
 use crate::components::ui::button::{Button, ButtonSize, ButtonVariant};
 use crate::components::ui::card::{
     Card, CardAction, CardContent, CardDescription, CardFooter, CardHeader, CardTitle,
@@ -165,7 +165,7 @@ pub fn Room(room_name: String) -> impl IntoView {
                             >
                                 <div class="flex items-center gap-2">
                                     <div class="size-6 shrink-0 overflow-hidden rounded-full">
-                                        <Gravatar gravatar_id=user.gravatar_id.clone() />
+                                        <Avatar avatar=user.avatar.clone() />
                                     </div>
                                     <span class="truncate text-sm">{user.name.clone()}</span>
                                 </div>

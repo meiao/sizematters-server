@@ -17,7 +17,7 @@
  */
 
 pub mod dialogs;
-pub mod gravatar;
+pub mod avatar;
 pub mod main_menu;
 pub mod no_menu;
 pub mod rooms;

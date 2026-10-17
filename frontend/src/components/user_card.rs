@@ -16,7 +16,7 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-use crate::components::gravatar::Gravatar;
+use crate::components::avatar::Avatar;
 use crate::components::ui::badge::{Badge, BadgeSize, BadgeVariant};
 use crate::components::ui::button::{Button, ButtonSize, ButtonVariant};
 use crate::stores::{UserStore, VoteStore};
@@ -54,11 +54,11 @@ pub fn UserCard(
 
     let name = move || user_data.get().map(|u| u.name.clone()).unwrap_or_default();
 
-    // Memo for gravatar_id so the <img> only re-creates when it actually changes.
-    let gravatar_id = Memo::new(move |_| {
+    // Memo for avatar so the <img> only re-creates when it actually changes.
+    let avatar = Memo::new(move |_| {
         user_data
             .get()
-            .map(|u| u.gravatar_id.clone())
+            .map(|u| u.avatar.clone())
             .unwrap_or_default()
     });
 
@@ -116,8 +116,8 @@ pub fn UserCard(
             <div class="relative aspect-square overflow-hidden perspective-[1000px]">
                 <div class="flip-face flip-front size-full">
                     {move || {
-                        let gid = gravatar_id.get();
-                        view! { <Gravatar gravatar_id=gid /> }
+                        let avatar = avatar.get();
+                        view! { <Avatar avatar=avatar /> }
                     }}
                 </div>
                 <div class="flip-face flip-back absolute inset-0 flex items-center justify-center bg-card text-4xl font-semibold sm:text-6xl">

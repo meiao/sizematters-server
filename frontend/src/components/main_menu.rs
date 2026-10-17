@@ -50,7 +50,7 @@ pub fn MainMenu() -> impl IntoView {
         let users = user_store.user_signal().get();
         users
             .get(&own_id)
-            .map(|u| format!("https://www.gravatar.com/avatar/{}?d=retro", u.gravatar_id))
+            .map(|u| u.avatar.clone())
             .unwrap_or_default()
     });
 
@@ -104,9 +104,13 @@ pub fn MainMenu() -> impl IntoView {
                         let url = img_url.get();
                         (!url.is_empty()).then(|| view! { <AvatarImage attr:src=url attr:alt="" /> })
                     }}
-                    <AvatarFallback class="bg-success text-success-foreground text-lg">
-                        {move || name.get().chars().next().map(String::from).unwrap_or_default()}
-                    </AvatarFallback>
+                    {move || {
+                        img_url.get().is_empty().then(|| view! {
+                            <AvatarFallback class="bg-success text-success-foreground text-lg">
+                                {move || name.get().chars().next().map(String::from).unwrap_or_default()}
+                            </AvatarFallback>
+                        })
+                    }}
                 </Avatar>
             </Button>
             <Button
