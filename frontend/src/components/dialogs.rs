@@ -23,6 +23,7 @@ use crate::components::ui::dialog::{
 use crate::components::ui::input::{Input, InputType};
 use crate::components::ui::label::Label;
 use leptos::prelude::*;
+use sizematters_shared::avatar::AvatarStyle;
 use sizematters_shared::RoomType;
 use strum::IntoEnumIterator;
 
@@ -73,6 +74,56 @@ pub fn PromptDialog(
                         bind_value=input_value
                         attr:aria-labelledby=title_id.get_value()
                     />
+                </DialogBody>
+                <DialogFooter>
+                    <Button variant=ButtonVariant::Outline attr:r#type="button" on:click=move |_| show.set(false)>
+                        "Cancel"
+                    </Button>
+                    <Button attr:r#type="submit">"Confirm"</Button>
+                </DialogFooter>
+            </form>
+        </Dialog>
+    }
+}
+
+/// Modal dialog to pick one of the available `AvatarStyle`s.
+#[component]
+pub fn AvatarStyleDialog(show: RwSignal<bool>, on_confirm: Callback<AvatarStyle>) -> impl IntoView {
+    let selected = RwSignal::new(AvatarStyle::default());
+
+    let on_submit = move |e: leptos::ev::SubmitEvent| {
+        e.prevent_default();
+        on_confirm.run(selected.get());
+        show.set(false);
+    };
+
+    view! {
+        <Dialog open=show labelledby="avatar-dialog-title">
+            <form class="contents" on:submit=on_submit>
+                <DialogHeader>
+                    <DialogTitle attr:id="avatar-dialog-title">"Profile picture"</DialogTitle>
+                    <DialogDescription>
+                        <p>"Pick the style of your profile picture."</p>
+                    </DialogDescription>
+                </DialogHeader>
+                <DialogBody>
+                    <div class="grid grid-cols-2 gap-2" role="radiogroup" aria-label="Avatar style">
+                        {AvatarStyle::iter()
+                            .map(|style| {
+                                view! {
+                                    <Label class="font-normal">
+                                        <input
+                                            r#type="radio"
+                                            name="avatar-style"
+                                            checked=move || selected.get() == style
+                                            on:change=move |_| selected.set(style)
+                                        />
+                                        {format!("{style:?}")}
+                                    </Label>
+                                }
+                            })
+                            .collect_view()}
+                    </div>
                 </DialogBody>
                 <DialogFooter>
                     <Button variant=ButtonVariant::Outline attr:r#type="button" on:click=move |_| show.set(false)>

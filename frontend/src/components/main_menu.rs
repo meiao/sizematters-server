@@ -16,7 +16,7 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-use crate::components::dialogs::{PromptDialog, RoomDialog, RoomDialogAction};
+use crate::components::dialogs::{AvatarStyleDialog, PromptDialog, RoomDialog, RoomDialogAction};
 use crate::components::ui::avatar::{Avatar, AvatarFallback, AvatarImage, AvatarSize};
 use crate::components::ui::button::{Button, ButtonSize, ButtonVariant};
 use crate::components::ui::card::{Card, CardAction, CardHeader, CardSize, CardTitle};
@@ -24,6 +24,7 @@ use crate::stores::{JyankenStore, RoomStore, UserStore, VoteStore};
 use crate::ws;
 use icons::{Plus, UserPen};
 use leptos::prelude::*;
+use sizematters_shared::avatar::AvatarStyle;
 
 #[component]
 pub fn MainMenu() -> impl IntoView {
@@ -33,7 +34,7 @@ pub fn MainMenu() -> impl IntoView {
     let jyanken_store = expect_context::<JyankenStore>();
 
     let show_name_dialog = RwSignal::new(false);
-    let show_email_dialog = RwSignal::new(false);
+    let show_avatar_dialog = RwSignal::new(false);
     let show_room_dialog = RwSignal::new(false);
 
     let name = Memo::new(move |_| {
@@ -67,15 +68,10 @@ pub fn MainMenu() -> impl IntoView {
                 ws::ws_set_name(name);
             })
         />
-        <PromptDialog
-            title="Profile picture"
-            content=&[
-                "I tried my best to create a profile picture for you. Since you didn't like it, you can use your Gravatar image.",
-                "I will need your email for such. I promise I won't save/sell your email.",
-            ]
-            show=show_email_dialog
-            on_confirm=Callback::new(|email: String| {
-                ws::ws_set_avatar(email);
+        <AvatarStyleDialog
+            show=show_avatar_dialog
+            on_confirm=Callback::new(|style: AvatarStyle| {
+                ws::ws_set_avatar_style(style);
             })
         />
         <RoomDialog
@@ -97,7 +93,7 @@ pub fn MainMenu() -> impl IntoView {
                 class="size-12 rounded-full p-0"
                 attr:aria-label="Change profile picture"
                 attr:title="Change profile picture"
-                on:click=move |_| show_email_dialog.set(true)
+                on:click=move |_| show_avatar_dialog.set(true)
             >
                 <Avatar size=AvatarSize::Lg class="size-11">
                     {move || {

@@ -191,12 +191,20 @@ pub fn JyankenRoom(room_name: String) -> impl IntoView {
                                     key=|user| user.user_id.clone()
                                     let:user
                                 >
-                                    <div class="flex items-center gap-2">
-                                        <div class="size-6 shrink-0 overflow-hidden rounded-full">
-                                            <Avatar avatar=user.avatar.clone() />
-                                        </div>
-                                        <span class="truncate text-sm">{user.name.clone()}</span>
-                                    </div>
+                                    {
+                                        let uid = user.user_id.clone();
+                                        let current = Memo::new(move |_| {
+                                            users.get().into_iter().find(|u| u.user_id == uid)
+                                        });
+                                        view! {
+                                            <div class="flex items-center gap-2">
+                                                <div class="size-6 shrink-0 overflow-hidden rounded-full">
+                                                    {move || view! { <Avatar avatar=current.get().map(|u| u.avatar).unwrap_or_default() /> }}
+                                                </div>
+                                                <span class="truncate text-sm">{move || current.get().map(|u| u.name).unwrap_or_default()}</span>
+                                            </div>
+                                        }
+                                    }
                                 </For>
                             </div>
                         </div>
@@ -212,8 +220,12 @@ pub fn JyankenRoom(room_name: String) -> impl IntoView {
                                 let uid_shot = user.user_id.clone();
                                 let uid_weapon = user.user_id.clone();
                                 let uid_score = user.user_id.clone();
-                                let avatar = user.avatar.clone();
-                                let name = user.name.clone();
+                                let uid_user = user.user_id.clone();
+                                let current = Memo::new(move |_| {
+                                    users.get().into_iter().find(|u| u.user_id == uid_user)
+                                });
+                                let avatar = move || current.get().map(|u| u.avatar).unwrap_or_default();
+                                let name = move || current.get().map(|u| u.name).unwrap_or_default();
                                 let has_shot = move || {
                                     state.get().selected.get(&uid_shot).copied().unwrap_or(false)
                                 };
@@ -261,7 +273,7 @@ pub fn JyankenRoom(room_name: String) -> impl IntoView {
                                         </div>
                                         <div class="relative aspect-square overflow-hidden perspective-[1000px]">
                                             <div class="flip-face flip-front size-full">
-                                                <Avatar avatar=avatar />
+                                                {move || view! { <Avatar avatar=avatar() /> }}
                                             </div>
                                             <div class="flip-face flip-back absolute inset-0 flex flex-col items-center justify-center gap-1 bg-card">
                                                 {move || weapon.get().map(|w| {
