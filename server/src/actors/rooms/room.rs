@@ -23,6 +23,7 @@ use sizematters_shared::messages::ClientResponseMessage;
 use sizematters_shared::{RoomType, UserData};
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
+use sizematters_shared::avatar::AvatarStyle;
 
 /// Logic that is specific to a type of room. `T` is the type of the room specific messages.
 ///
@@ -305,8 +306,8 @@ struct ConnectionInfo {
 struct UserInfo {
     user_id: Arc<String>,
     name: Arc<String>,
-    gravatar_id: Arc<String>,
     avatar: Arc<String>,
+    avatar_style: Arc<AvatarStyle>,
 }
 
 impl From<UserData> for UserInfo {
@@ -314,8 +315,8 @@ impl From<UserData> for UserInfo {
         UserInfo {
             user_id: Arc::new(user.user_id),
             name: Arc::new(user.name),
-            gravatar_id: Arc::new(user.gravatar_id),
             avatar: Arc::new(user.avatar),
+            avatar_style: Arc::new(user.avatar_style),
         }
     }
 }
@@ -325,8 +326,8 @@ impl From<&UserInfo> for UserData {
         UserData {
             user_id: (*user.user_id).clone(),
             name: (*user.name).clone(),
-            gravatar_id: (*user.gravatar_id).clone(),
             avatar: (*user.avatar).clone(),
+            avatar_style: (*user.avatar_style).clone(),
         }
     }
 }

@@ -13,17 +13,12 @@ actix-web-actors = "4"
 dicebear-core = "10.7.0"
 dicebear-styles = { version = "10.6.0", features = [
     "blobs",
-    "disco",
     "glass",
     "identicon",
-    "patchwork",
-    "rings",
-    "squircles",
-    "slice",
+    "pixelbot",
     "shapes",
-    "stack",
-    "waves",
-    "weave"] }
+    "squircles",
+    "waves"] }
 env_logger = "0.11"
 md5 = "0.8"
 rand = "0.10"

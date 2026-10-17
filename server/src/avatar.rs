@@ -18,6 +18,7 @@
 
 use dicebear_core::{Avatar, Style};
 use serde_json::json;
+use sizematters_shared::avatar::AvatarStyle;
 
 pub(crate) fn default_avatar(user_id: &str) -> String {
     let style = Style::from_str(dicebear_styles::IDENTICON).unwrap();
@@ -26,4 +27,30 @@ pub(crate) fn default_avatar(user_id: &str) -> String {
     })).unwrap();
 
     avatar.to_data_uri()
+}
+
+pub(crate) fn styled_avatar(user_id: &str, style: &AvatarStyle) -> String {
+    let options = match style {
+        AvatarStyle::Blobs |
+        AvatarStyle::Glass |
+        AvatarStyle::Pixelbot |
+        AvatarStyle::Shapes |
+        AvatarStyle::Squircles |
+        AvatarStyle::Waves => json!({"seed": user_id, "animationVariant": ["fastest"]}),
+        _ => json!({"seed": user_id}),
+    };
+    let style = get_style(style);
+    Avatar::new(&style, options).unwrap().to_data_uri()
+}
+
+fn get_style(style: &AvatarStyle) -> Style {
+    match style {
+        AvatarStyle::Blobs => Style::from_str(dicebear_styles::BLOBS).unwrap(),
+        AvatarStyle::Glass => Style::from_str(dicebear_styles::GLASS).unwrap(),
+        AvatarStyle::Identicon => Style::from_str(dicebear_styles::IDENTICON).unwrap(),
+        AvatarStyle::Squircles => Style::from_str(dicebear_styles::SQUIRCLES).unwrap(),
+        AvatarStyle::Shapes => Style::from_str(dicebear_styles::SHAPES).unwrap(),
+        AvatarStyle::Waves => Style::from_str(dicebear_styles::WAVES).unwrap(),
+        AvatarStyle::Pixelbot => Style::from_str(dicebear_styles::PIXELBOT).unwrap(),
+    }
 }

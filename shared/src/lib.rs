@@ -21,30 +21,30 @@ pub mod messages;
 
 use serde::{Deserialize, Serialize};
 use strum::EnumIter;
+use crate::avatar::AvatarStyle;
 
 #[derive(Serialize, Deserialize, Clone, Debug, Hash, Eq, PartialEq)]
 pub struct UserData {
     pub user_id: String,
     pub name: String,
-    pub gravatar_id: String,
     pub avatar: String,
+    pub avatar_style: AvatarStyle,
 }
 
 impl UserData {
     pub fn new(user_id: String, avatar: String) -> UserData {
         let name = "Shirtless Muppet".to_string();
-        let gravatar_id = format!("{:x}", md5::compute(user_id.clone()));
-        
+        let avatar_style = AvatarStyle::default();
         UserData {
             user_id,
             name,
-            gravatar_id,
             avatar,
+            avatar_style,
         }
     }
 
     pub fn set_avatar(&mut self, avatar: &str) {
-        self.gravatar_id = format!("{:x}", md5::compute(avatar));
+        self.avatar = avatar.to_string();
     }
 }
 

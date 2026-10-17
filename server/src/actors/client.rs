@@ -27,6 +27,7 @@ use std::sync::Arc;
 use std::time::Duration;
 use std::time::Instant;
 use uuid::Uuid;
+use sizematters_shared::avatar::AvatarStyle;
 use crate::avatar;
 
 /// How often heartbeat pings are sent
@@ -119,7 +120,7 @@ impl ClientActor {
         match msg {
             ClientRequestMessage::Register => self.register(ctx),
             ClientRequestMessage::SetName { name } => self.set_name(name, ctx),
-            ClientRequestMessage::SetAvatar { avatar } => self.set_avatar(avatar, ctx),
+            ClientRequestMessage::SetAvatarStyle { avatar_style } => self.set_avatar_style(avatar_style, ctx),
             ClientRequestMessage::JoinRoom {
                 room_name,
                 password,
@@ -144,10 +145,14 @@ impl ClientActor {
 
     fn set_name(&mut self, name: String, ctx: &mut <Self as Actor>::Context) {
         self.user.name = name;
+        let avatar = avatar::styled_avatar(&self.user.name, &self.user.avatar_style);
+        self.user.set_avatar(&avatar);
         self.notify_data_updated(ctx);
     }
 
-    fn set_avatar(&mut self, avatar: String, ctx: &mut <Self as Actor>::Context) {
+    fn set_avatar_style(&mut self, avatar_style: AvatarStyle, ctx: &mut <Self as Actor>::Context) {
+        let avatar = avatar::styled_avatar(&self.user.name, &avatar_style);
+        self.user.avatar_style = avatar_style;
         self.user.set_avatar(&avatar);
         self.notify_data_updated(ctx);
     }
