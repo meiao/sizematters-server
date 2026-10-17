@@ -18,17 +18,17 @@
 
 use super::RoomManagerActor;
 use crate::actors::messages::RoomMessages;
+use crate::avatar;
 use actix::prelude::*;
 use actix_web_actors::ws;
 use serde_json::Error;
+use sizematters_shared::avatar::AvatarStyle;
 use sizematters_shared::messages::{ClientRequestMessage, ClientResponseMessage};
 use sizematters_shared::{RoomType, UserData};
 use std::sync::Arc;
 use std::time::Duration;
 use std::time::Instant;
 use uuid::Uuid;
-use sizematters_shared::avatar::AvatarStyle;
-use crate::avatar;
 
 /// How often heartbeat pings are sent
 const HEARTBEAT_INTERVAL: Duration = Duration::from_secs(5);
@@ -120,7 +120,9 @@ impl ClientActor {
         match msg {
             ClientRequestMessage::Register => self.register(ctx),
             ClientRequestMessage::SetName { name } => self.set_name(name, ctx),
-            ClientRequestMessage::SetAvatarStyle { avatar_style } => self.set_avatar_style(avatar_style, ctx),
+            ClientRequestMessage::SetAvatarStyle { avatar_style } => {
+                self.set_avatar_style(avatar_style, ctx)
+            }
             ClientRequestMessage::JoinRoom {
                 room_name,
                 password,

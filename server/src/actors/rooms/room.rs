@@ -19,11 +19,11 @@
 use crate::actors::messages::RoomMessages;
 use actix::{Actor, ActorContext, Context, Handler, Recipient};
 use serde::de::DeserializeOwned;
+use sizematters_shared::avatar::AvatarStyle;
 use sizematters_shared::messages::ClientResponseMessage;
 use sizematters_shared::{RoomType, UserData};
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
-use sizematters_shared::avatar::AvatarStyle;
 
 /// Logic that is specific to a type of room. `T` is the type of the room specific messages.
 ///

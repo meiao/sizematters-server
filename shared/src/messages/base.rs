@@ -1,6 +1,6 @@
+use crate::avatar::AvatarStyle;
 use crate::{RoomType, UserData};
 use serde::{Deserialize, Serialize};
-use crate::avatar::AvatarStyle;
 
 /// Messages sent from the client to the server.
 #[derive(Serialize, Deserialize, Clone, Debug)]

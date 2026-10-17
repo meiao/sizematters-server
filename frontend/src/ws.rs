@@ -19,11 +19,11 @@
 use crate::room_storage;
 use crate::stores::{JyankenStore, RoomStore, UserStore, VoteStore};
 use leptos::prelude::*;
+use sizematters_shared::avatar::AvatarStyle;
 use sizematters_shared::messages::jyanken::JyankenResponseMessage;
 use sizematters_shared::messages::{
     ClientRequestMessage, ClientResponseMessage, SizingResponseMessage,
 };
-use sizematters_shared::avatar::AvatarStyle;
 use sizematters_shared::RoomType;
 use wasm_bindgen::prelude::*;
 use web_sys::WebSocket;

@@ -22,21 +22,25 @@ use sizematters_shared::avatar::AvatarStyle;
 
 pub(crate) fn default_avatar(user_id: &str) -> String {
     let style = Style::from_str(dicebear_styles::IDENTICON).unwrap();
-    let avatar = Avatar::new(&style, json!({
-        "seed": user_id
-    })).unwrap();
+    let avatar = Avatar::new(
+        &style,
+        json!({
+            "seed": user_id
+        }),
+    )
+    .unwrap();
 
     avatar.to_data_uri()
 }
 
 pub(crate) fn styled_avatar(user_id: &str, style: &AvatarStyle) -> String {
     let options = match style {
-        AvatarStyle::Blobs |
-        AvatarStyle::Glass |
-        AvatarStyle::Pixelbot |
-        AvatarStyle::Shapes |
-        AvatarStyle::Squircles |
-        AvatarStyle::Waves => json!({"seed": user_id, "animationVariant": ["fastest"]}),
+        AvatarStyle::Blobs
+        | AvatarStyle::Glass
+        | AvatarStyle::Pixelbot
+        | AvatarStyle::Shapes
+        | AvatarStyle::Squircles
+        | AvatarStyle::Waves => json!({"seed": user_id, "animationVariant": ["fastest"]}),
         _ => json!({"seed": user_id}),
     };
     let style = get_style(style);

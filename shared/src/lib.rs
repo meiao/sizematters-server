@@ -19,9 +19,9 @@
 pub mod avatar;
 pub mod messages;
 
+use crate::avatar::AvatarStyle;
 use serde::{Deserialize, Serialize};
 use strum::EnumIter;
-use crate::avatar::AvatarStyle;
 
 #[derive(Serialize, Deserialize, Clone, Debug, Hash, Eq, PartialEq)]
 pub struct UserData {
