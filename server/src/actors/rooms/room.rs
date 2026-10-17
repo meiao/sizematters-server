@@ -327,7 +327,7 @@ impl From<&UserInfo> for UserData {
             user_id: (*user.user_id).clone(),
             name: (*user.name).clone(),
             avatar: (*user.avatar).clone(),
-            avatar_style: (*user.avatar_style).clone(),
+            avatar_style: *user.avatar_style,
         }
     }
 }
