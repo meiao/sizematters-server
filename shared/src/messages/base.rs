@@ -1,3 +1,4 @@
+use crate::avatar::AvatarStyle;
 use crate::{RoomType, UserData};
 use serde::{Deserialize, Serialize};
 
@@ -11,8 +12,8 @@ pub enum ClientRequestMessage {
     SetName {
         name: String,
     },
-    SetAvatar {
-        avatar: String,
+    SetAvatarStyle {
+        avatar_style: AvatarStyle,
     },
     CreateRoom {
         room_name: String,

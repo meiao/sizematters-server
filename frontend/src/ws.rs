@@ -19,6 +19,7 @@
 use crate::room_storage;
 use crate::stores::{JyankenStore, RoomStore, UserStore, VoteStore};
 use leptos::prelude::*;
+use sizematters_shared::avatar::AvatarStyle;
 use sizematters_shared::messages::jyanken::JyankenResponseMessage;
 use sizematters_shared::messages::{
     ClientRequestMessage, ClientResponseMessage, SizingResponseMessage,
@@ -240,15 +241,17 @@ fn send_message(msg: ClientRequestMessage) {
     });
 }
 
-/// Restore user name and avatar from localStorage after reconnecting.
+/// Restore user name and avatar style from localStorage after reconnecting.
 fn restore_data() {
     let storage = web_sys::window().unwrap().local_storage().unwrap();
     if let Some(storage) = storage {
         if let Ok(Some(name)) = storage.get_item("name") {
             send_message(ClientRequestMessage::SetName { name });
         }
-        if let Ok(Some(avatar)) = storage.get_item("avatar") {
-            send_message(ClientRequestMessage::SetAvatar { avatar });
+        if let Ok(Some(saved)) = storage.get_item("avatar_style") {
+            if let Ok(avatar_style) = serde_json::from_str::<AvatarStyle>(&saved) {
+                send_message(ClientRequestMessage::SetAvatarStyle { avatar_style });
+            }
         }
         restore_rooms();
     }
@@ -381,6 +384,7 @@ fn process_message(
             room_store.user_left(&room_name, &user_id);
         }
         ClientResponseMessage::UserUpdated { user } => {
+            room_store.user_updated(&user);
             user_store.user_updated(user);
         }
         ClientResponseMessage::RoomMessage { room_name, payload } => {
@@ -464,12 +468,14 @@ pub fn ws_set_name(name: String) {
     send_message(ClientRequestMessage::SetName { name });
 }
 
-pub fn ws_set_avatar(email: String) {
+pub fn ws_set_avatar_style(avatar_style: AvatarStyle) {
     let storage = web_sys::window().unwrap().local_storage().unwrap();
     if let Some(storage) = storage {
-        let _ = storage.set_item("avatar", &email);
+        if let Ok(json) = serde_json::to_string(&avatar_style) {
+            let _ = storage.set_item("avatar_style", &json);
+        }
     }
-    send_message(ClientRequestMessage::SetAvatar { avatar: email });
+    send_message(ClientRequestMessage::SetAvatarStyle { avatar_style });
 }
 
 pub fn ws_join_room(room_name: String, password: String, password_is_hash: bool) {

@@ -76,6 +76,19 @@ impl RoomStore {
         });
     }
 
+    /// Replace the stored copy of an updated user in every room that has them.
+    pub fn user_updated(&self, user: &UserData) {
+        self.rooms.update(|rooms| {
+            for u in rooms
+                .iter_mut()
+                .flat_map(|r| r.users.iter_mut())
+                .filter(|u| u.user_id == user.user_id)
+            {
+                *u = user.clone();
+            }
+        });
+    }
+
     pub fn user_left(&self, room_name: &str, user_id: &str) {
         self.rooms.update(|rooms| {
             if let Some(room) = rooms.iter_mut().find(|r| r.room_name == room_name) {

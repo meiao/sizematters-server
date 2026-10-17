@@ -17,6 +17,7 @@
  */
 
 mod actors;
+pub mod avatar;
 
 use actix::{Actor, Addr};
 use actix_web::{middleware, web, App, Error, HttpRequest, HttpResponse, HttpServer};

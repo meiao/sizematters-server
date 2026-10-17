@@ -16,7 +16,7 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-use crate::components::gravatar::Gravatar;
+use crate::components::avatar::Avatar;
 use crate::components::ui::button::{Button, ButtonSize, ButtonVariant};
 use crate::components::ui::card::{
     Card, CardAction, CardContent, CardDescription, CardFooter, CardHeader, CardTitle,
@@ -163,12 +163,20 @@ pub fn Room(room_name: String) -> impl IntoView {
                                 key=|user| user.user_id.clone()
                                 let:user
                             >
-                                <div class="flex items-center gap-2">
-                                    <div class="size-6 shrink-0 overflow-hidden rounded-full">
-                                        <Gravatar gravatar_id=user.gravatar_id.clone() />
-                                    </div>
-                                    <span class="truncate text-sm">{user.name.clone()}</span>
-                                </div>
+                                {
+                                    let uid = user.user_id.clone();
+                                    let current = Memo::new(move |_| {
+                                        users().into_iter().find(|u| u.user_id == uid)
+                                    });
+                                    view! {
+                                        <div class="flex items-center gap-2">
+                                            <div class="size-6 shrink-0 overflow-hidden rounded-full">
+                                                {move || view! { <Avatar avatar=current.get().map(|u| u.avatar).unwrap_or_default() /> }}
+                                            </div>
+                                            <span class="truncate text-sm">{move || current.get().map(|u| u.name).unwrap_or_default()}</span>
+                                        </div>
+                                    }
+                                }
                             </For>
                         </div>
                     </div>

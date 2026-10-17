@@ -16,8 +16,8 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
+pub mod avatar;
 pub mod dialogs;
-pub mod gravatar;
 pub mod main_menu;
 pub mod no_menu;
 pub mod rooms;

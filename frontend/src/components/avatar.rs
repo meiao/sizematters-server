@@ -19,8 +19,8 @@
 use leptos::prelude::*;
 
 #[component]
-pub fn Gravatar(gravatar_id: String) -> impl IntoView {
-    let src = format!("https://www.gravatar.com/avatar/{}?d=retro", gravatar_id);
+pub fn Avatar(avatar: String) -> impl IntoView {
+    let src = avatar;
     view! {
         <img src=src class="block size-full object-cover" alt="" />
     }

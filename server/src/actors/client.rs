@@ -18,9 +18,11 @@
 
 use super::RoomManagerActor;
 use crate::actors::messages::RoomMessages;
+use crate::avatar;
 use actix::prelude::*;
 use actix_web_actors::ws;
 use serde_json::Error;
+use sizematters_shared::avatar::AvatarStyle;
 use sizematters_shared::messages::{ClientRequestMessage, ClientResponseMessage};
 use sizematters_shared::{RoomType, UserData};
 use std::sync::Arc;
@@ -46,9 +48,10 @@ pub struct ClientActor {
 impl ClientActor {
     pub fn new(room_manager: Addr<RoomManagerActor>) -> Self {
         let user_id = Uuid::new_v4().simple().to_string();
+        let avatar = avatar::default_avatar(&user_id);
         Self {
             last_heartbeat: Instant::now(),
-            user: UserData::new(user_id),
+            user: UserData::new(user_id, avatar),
             room_manager,
         }
     }
@@ -117,7 +120,9 @@ impl ClientActor {
         match msg {
             ClientRequestMessage::Register => self.register(ctx),
             ClientRequestMessage::SetName { name } => self.set_name(name, ctx),
-            ClientRequestMessage::SetAvatar { avatar } => self.set_avatar(avatar, ctx),
+            ClientRequestMessage::SetAvatarStyle { avatar_style } => {
+                self.set_avatar_style(avatar_style, ctx)
+            }
             ClientRequestMessage::JoinRoom {
                 room_name,
                 password,
@@ -142,10 +147,14 @@ impl ClientActor {
 
     fn set_name(&mut self, name: String, ctx: &mut <Self as Actor>::Context) {
         self.user.name = name;
+        let avatar = avatar::styled_avatar(&self.user.name, &self.user.avatar_style);
+        self.user.set_avatar(&avatar);
         self.notify_data_updated(ctx);
     }
 
-    fn set_avatar(&mut self, avatar: String, ctx: &mut <Self as Actor>::Context) {
+    fn set_avatar_style(&mut self, avatar_style: AvatarStyle, ctx: &mut <Self as Actor>::Context) {
+        let avatar = avatar::styled_avatar(&self.user.name, &avatar_style);
+        self.user.avatar_style = avatar_style;
         self.user.set_avatar(&avatar);
         self.notify_data_updated(ctx);
     }
