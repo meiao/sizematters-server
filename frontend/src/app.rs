@@ -61,6 +61,10 @@ pub fn App() -> impl IntoView {
                             <Route path=path!("/") view=HomePage />
                             <Route path=path!("/main") view=MainPage />
                             <Route path=path!("/room/:room_name/:password") view=ConnectingPage />
+                            <Route
+                                path=path!("/room/:room_type/:room_name/:password")
+                                view=ConnectingPage
+                            />
                             <Route path=path!("/error/:error_type") view=ErrorPage />
                         </Routes>
                     </main>

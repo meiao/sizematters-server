@@ -20,9 +20,14 @@ use crate::ws::{self, WsContext};
 use icons::LoaderCircle;
 use leptos::prelude::*;
 use leptos_router::hooks::{use_navigate, use_params_map};
+use sizematters_shared::RoomType;
 
-/// Page shown when navigating to /room/:room_name/:password.
-/// Connects the WebSocket, joins the room, then redirects to /main.
+/// Page shown when navigating to a shareable room URL:
+/// - /room/:room_type/:room_name/:password creates the room if it does not exist yet,
+///   or joins it if it does;
+/// - /room/:room_name/:password (legacy, no room type) can only join an existing room.
+///
+/// Connects the WebSocket, creates/joins the room, then redirects to /main.
 #[component]
 pub fn ConnectingPage() -> impl IntoView {
     let ws_ctx = expect_context::<WsContext>();
@@ -31,6 +36,11 @@ pub fn ConnectingPage() -> impl IntoView {
 
     let room_name = params.get_untracked().get("room_name").unwrap_or_default();
     let password = params.get_untracked().get("password").unwrap_or_default();
+    // An unknown room type falls back to joining, which still works for existing rooms.
+    let room_type = params
+        .get_untracked()
+        .get("room_type")
+        .and_then(|slug| RoomType::from_url_slug(&slug));
 
     // Start connection on mount (runs once since no tracked signals)
     Effect::new(move |ran: Option<bool>| {
@@ -55,7 +65,12 @@ pub fn ConnectingPage() -> impl IntoView {
             joined.set(true);
             ws::ws_register();
             if !rn2.is_empty() && !pw2.is_empty() {
-                ws::ws_join_room(rn2.clone(), pw2.clone(), true);
+                match room_type {
+                    Some(room_type) => {
+                        ws::ws_create_room(rn2.clone(), pw2.clone(), true, room_type)
+                    }
+                    None => ws::ws_join_room(rn2.clone(), pw2.clone(), true),
+                }
             }
             nav2("/main", Default::default());
         }

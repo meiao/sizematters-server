@@ -21,7 +21,7 @@ pub mod messages;
 
 use crate::avatar::AvatarStyle;
 use serde::{Deserialize, Serialize};
-use strum::EnumIter;
+use strum::{EnumIter, IntoEnumIterator};
 
 #[derive(Serialize, Deserialize, Clone, Debug, Hash, Eq, PartialEq)]
 pub struct UserData {
@@ -61,5 +61,45 @@ impl RoomType {
             RoomType::Sizing => "Sizing",
             RoomType::Jyanken => "Jyanken (Rock Paper Scissor)",
         }
+    }
+
+    /// The identifier used for this room type in shareable room URLs.
+    pub fn url_slug(&self) -> &'static str {
+        match self {
+            RoomType::Sizing => "sizing",
+            RoomType::Jyanken => "jyanken",
+        }
+    }
+
+    /// Parses a room type from its URL identifier (case-insensitive).
+    pub fn from_url_slug(slug: &str) -> Option<RoomType> {
+        RoomType::iter().find(|room_type| room_type.url_slug().eq_ignore_ascii_case(slug))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn url_slug_round_trips_for_every_room_type() {
+        for room_type in RoomType::iter() {
+            assert_eq!(
+                RoomType::from_url_slug(room_type.url_slug()),
+                Some(room_type)
+            );
+        }
+    }
+
+    #[test]
+    fn from_url_slug_ignores_case() {
+        assert_eq!(RoomType::from_url_slug("Jyanken"), Some(RoomType::Jyanken));
+        assert_eq!(RoomType::from_url_slug("SIZING"), Some(RoomType::Sizing));
+    }
+
+    #[test]
+    fn from_url_slug_rejects_unknown_types() {
+        assert_eq!(RoomType::from_url_slug("chess"), None);
+        assert_eq!(RoomType::from_url_slug(""), None);
     }
 }
