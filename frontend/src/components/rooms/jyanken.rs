@@ -124,17 +124,24 @@ pub fn JyankenRoom(room_name: String) -> impl IntoView {
     let link_copied = RwSignal::new(false);
     let rn_link = room_name.clone();
     let room_link = Memo::new(move |_| {
-        let hp = room_store
+        let origin = web_sys::window()
+            .and_then(|w| w.location().origin().ok())
+            .unwrap_or_default();
+        room_store
             .rooms_signal()
             .get()
             .iter()
             .find(|r| r.room_name == rn_link)
-            .map(|r| r.hashed_password.clone())
-            .unwrap_or_default();
-        let origin = web_sys::window()
-            .and_then(|w| w.location().origin().ok())
-            .unwrap_or_default();
-        format!("{}/room/{}/{}", origin, rn_link, hp)
+            .map(|r| {
+                format!(
+                    "{}/room/{}/{}/{}",
+                    origin,
+                    r.room_type.url_slug(),
+                    rn_link,
+                    r.hashed_password
+                )
+            })
+            .unwrap_or_default()
     });
 
     let rn_msg = StoredValue::new(room_name.clone());
