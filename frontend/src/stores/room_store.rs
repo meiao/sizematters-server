@@ -107,8 +107,18 @@ impl RoomStore {
         });
     }
 
-    /// Reset room state for a new voting round.
-    pub fn new_vote(&self, room_name: &str) {
+    /// The type of a joined room, without tracking.
+    pub fn room_type_untracked(&self, room_name: &str) -> Option<RoomType> {
+        self.rooms.with_untracked(|rooms| {
+            rooms
+                .iter()
+                .find(|r| r.room_name == room_name)
+                .map(|r| r.room_type)
+        })
+    }
+
+    /// Forget who the randomizer picked, when a new round starts.
+    pub fn clear_selected_user(&self, room_name: &str) {
         self.rooms.update(|rooms| {
             if let Some(room) = rooms.iter_mut().find(|r| r.room_name == room_name) {
                 room.selected_user = None;
