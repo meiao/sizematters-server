@@ -86,6 +86,7 @@ impl WsContext {
     /// while a previous attempt is still connecting.
     pub fn connect(&self) {
         self.initiated.set(true);
+        install_wake_listeners(*self);
 
         // Prevent duplicate connections
         let already_connected = SOCKET.with(|s| s.borrow().is_some());
@@ -93,6 +94,8 @@ impl WsContext {
             return;
         }
         CONNECTING.set(true);
+        // This attempt supersedes any scheduled one, so there is only ever one retry chain.
+        cancel_scheduled_reconnect();
 
         let location = web_sys::window().unwrap().location();
         let protocol = location.protocol().unwrap();
@@ -133,6 +136,13 @@ impl WsContext {
             SOCKET.with(|s| {
                 *s.borrow_mut() = Some(socket_clone.clone());
             });
+            // The server treats every socket as a new user, with a new id, so whatever we
+            // knew about our rooms (members, votes, spectators) is stale after a reconnect.
+            // Drop it and let restore_data() rejoin the rooms and rebuild it. Rooms that
+            // can't be rejoined (e.g. the password changed) no longer linger in the UI.
+            room_store.clear();
+            vote_store.clear();
+            jyanken_store.clear();
             restore_data();
         });
         socket.set_onopen(Some(onopen.as_ref().unchecked_ref()));
@@ -186,42 +196,78 @@ thread_local! {
     static CONNECTING: std::cell::Cell<bool> = const { std::cell::Cell::new(false) };
     static SOCKET: std::cell::RefCell<Option<WebSocket>> = const { std::cell::RefCell::new(None) };
     static RECONNECT_ATTEMPTS: std::cell::Cell<u32> = const { std::cell::Cell::new(0) };
+    /// The pending reconnection timer, if one is scheduled.
+    static RECONNECT_TIMER: std::cell::Cell<Option<TimeoutHandle>> = const { std::cell::Cell::new(None) };
+    /// Whether the `online`/`visibilitychange` listeners have been installed.
+    static WAKE_LISTENERS_INSTALLED: std::cell::Cell<bool> = const { std::cell::Cell::new(false) };
 }
 
-const MAX_RECONNECT_ATTEMPTS: u32 = 5;
+/// Upper bound for the delay between reconnection attempts.
+const MAX_RECONNECT_DELAY_MS: u64 = 30_000;
 
-/// Schedule an automatic reconnection with exponential backoff.
+/// Schedule an automatic reconnection with exponential backoff: 1s, 2s, 4s, 8s, 16s, then
+/// every 30s for as long as it takes. There is no attempt limit, so the app recovers on its
+/// own after e.g. a laptop sleeps or the server is redeployed.
 fn schedule_reconnect(ctx: WsContext) {
     if !ctx.initiated.get_untracked() {
         return;
     }
 
-    let attempts = RECONNECT_ATTEMPTS.with(|a| {
-        let v = a.get();
-        a.set(v + 1);
-        v
-    });
+    let attempts = RECONNECT_ATTEMPTS.get();
+    RECONNECT_ATTEMPTS.set(attempts.saturating_add(1));
 
-    if attempts >= MAX_RECONNECT_ATTEMPTS {
-        log::warn!("Max reconnection attempts reached");
-        ctx.last_error.set(Some(
-            "Connection lost. Please refresh the page.".to_string(),
-        ));
-        return;
-    }
+    let delay_ms = (1000u64 << attempts.min(5)).min(MAX_RECONNECT_DELAY_MS);
+    log::info!("Reconnecting in {}ms (attempt {})", delay_ms, attempts + 1);
 
-    // Exponential backoff: 1s, 2s, 4s, 8s, 16s
-    let delay = 1000 * 2u32.pow(attempts);
-    log::info!("Reconnecting in {}ms (attempt {})", delay, attempts + 1);
-
-    set_timeout(
+    cancel_scheduled_reconnect();
+    let handle = set_timeout_with_handle(
         move || {
+            RECONNECT_TIMER.set(None);
             if !ctx.connected.get_untracked() {
                 ctx.connect();
             }
         },
-        std::time::Duration::from_millis(delay as u64),
+        std::time::Duration::from_millis(delay_ms),
     );
+    match handle {
+        Ok(handle) => RECONNECT_TIMER.set(Some(handle)),
+        Err(err) => log::error!("Failed to schedule reconnection: {:?}", err),
+    }
+}
+
+fn cancel_scheduled_reconnect() {
+    if let Some(handle) = RECONNECT_TIMER.take() {
+        handle.clear();
+    }
+}
+
+/// Reconnect right away, skipping the backoff, when the browser comes back online or the
+/// tab becomes visible again (e.g. after the laptop wakes up). Installed once.
+fn install_wake_listeners(ctx: WsContext) {
+    if WAKE_LISTENERS_INSTALLED.replace(true) {
+        return;
+    }
+    let Some(window) = web_sys::window() else {
+        return;
+    };
+
+    let wake = Closure::<dyn Fn()>::new(move || {
+        let visible = web_sys::window()
+            .and_then(|w| w.document())
+            .map(|d| d.visibility_state() == web_sys::VisibilityState::Visible)
+            .unwrap_or(true);
+        if visible && ctx.initiated.get_untracked() && !ctx.connected.get_untracked() {
+            log::info!("Woke up while disconnected, reconnecting now");
+            RECONNECT_ATTEMPTS.set(0);
+            ctx.connect();
+        }
+    });
+    let callback = wake.as_ref().unchecked_ref();
+    let _ = window.add_event_listener_with_callback("online", callback);
+    if let Some(document) = window.document() {
+        let _ = document.add_event_listener_with_callback("visibilitychange", callback);
+    }
+    wake.forget();
 }
 
 fn send_message(msg: ClientRequestMessage) {
@@ -241,20 +287,21 @@ fn send_message(msg: ClientRequestMessage) {
     });
 }
 
-/// Restore user name and avatar style from localStorage after reconnecting.
+/// Restore user name, avatar style and rooms from localStorage after (re)connecting.
+/// Does nothing when localStorage is unavailable.
 fn restore_data() {
-    let storage = web_sys::window().unwrap().local_storage().unwrap();
-    if let Some(storage) = storage {
-        if let Ok(Some(name)) = storage.get_item("name") {
-            send_message(ClientRequestMessage::SetName { name });
-        }
-        if let Ok(Some(saved)) = storage.get_item("avatar_style") {
-            if let Ok(avatar_style) = serde_json::from_str::<AvatarStyle>(&saved) {
-                send_message(ClientRequestMessage::SetAvatarStyle { avatar_style });
-            }
-        }
-        restore_rooms();
+    let Some(storage) = room_storage::local_storage() else {
+        return;
+    };
+    if let Ok(Some(name)) = storage.get_item("name") {
+        send_message(ClientRequestMessage::SetName { name });
     }
+    if let Ok(Some(saved)) = storage.get_item("avatar_style") {
+        if let Ok(avatar_style) = serde_json::from_str::<AvatarStyle>(&saved) {
+            send_message(ClientRequestMessage::SetAvatarStyle { avatar_style });
+        }
+    }
+    restore_rooms();
 }
 
 /// Recreate (or join, if it still exists) every room saved in localStorage.
@@ -319,11 +366,9 @@ fn process_jyanken_message(
     msg: JyankenResponseMessage,
     room_name: &str,
     room_store: RoomStore,
-    user_store: UserStore,
     jyanken_store: JyankenStore,
     last_error: RwSignal<Option<String>>,
 ) {
-    let _ = user_store;
     match msg {
         JyankenResponseMessage::OwnShoot { weapon } => jyanken_store.own_shoot(room_name, weapon),
         JyankenResponseMessage::GameStatus {
@@ -409,7 +454,6 @@ fn process_message(
                             msg,
                             &room_name,
                             room_store,
-                            user_store,
                             jyanken_store,
                             last_error,
                         ),
@@ -458,16 +502,14 @@ pub fn ws_register() {
 }
 
 pub fn ws_set_name(name: String) {
-    let storage = web_sys::window().unwrap().local_storage().unwrap();
-    if let Some(storage) = storage {
+    if let Some(storage) = room_storage::local_storage() {
         let _ = storage.set_item("name", &name);
     }
     send_message(ClientRequestMessage::SetName { name });
 }
 
 pub fn ws_set_avatar_style(avatar_style: AvatarStyle) {
-    let storage = web_sys::window().unwrap().local_storage().unwrap();
-    if let Some(storage) = storage {
+    if let Some(storage) = room_storage::local_storage() {
         if let Ok(json) = serde_json::to_string(&avatar_style) {
             let _ = storage.set_item("avatar_style", &json);
         }

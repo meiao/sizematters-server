@@ -17,6 +17,7 @@
  */
 
 mod app;
+mod collate;
 mod components;
 mod pages;
 mod room_storage;

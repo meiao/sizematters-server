@@ -114,7 +114,7 @@ pub fn MainPage() -> impl IntoView {
                         </EmptyMedia>
                         <EmptyTitle>"Join a room"</EmptyTitle>
                         <EmptyDescription class="max-w-sm">
-                            "To get the most of this website you should join a room, or create one. Do so by pressing the '+' in the menu."
+                            "To get the most out of this website you should join a room, or create one. Do so by pressing the '+' in the menu."
                         </EmptyDescription>
                     </EmptyHeader>
                 </Empty>

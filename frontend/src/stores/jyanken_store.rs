@@ -76,6 +76,11 @@ impl JyankenStore {
         });
     }
 
+    /// Remove the state of every room. See `RoomStore::clear`.
+    pub fn clear(&self) {
+        self.rooms.update(|rooms| rooms.clear());
+    }
+
     pub fn user_joined(&self, room_name: &str, user_id: &str) {
         self.update_room(room_name, |s| {
             s.spectators.insert(user_id.to_string());

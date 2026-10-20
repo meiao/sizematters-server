@@ -159,7 +159,7 @@ pub enum RoomDialogAction {
     },
 }
 
-/// Modal dialog for creating/joining a rooms with name and password fields.
+/// Modal dialog for creating/joining a room with name and password fields.
 #[component]
 pub fn RoomDialog(show: RwSignal<bool>, on_confirm: Callback<RoomDialogAction>) -> impl IntoView {
     let mode = RwSignal::new(RoomDialogMode::default());
@@ -197,10 +197,10 @@ pub fn RoomDialog(show: RwSignal<bool>, on_confirm: Callback<RoomDialogAction>) 
                     <DialogTitle attr:id="room-dialog-title">"Create/Join Room"</DialogTitle>
                     <DialogDescription>
                         <p>
-                            "If someone gave you a rooms name/password combination, just enter it below to join that rooms."
+                            "If someone gave you a room's name/password combination, just enter it below to join that room."
                         </p>
                         <p>
-                            "Or type a new name and select a password to create your own rooms."
+                            "Or type a new name and select a password to create your own room."
                             <br />
                             "Then share it with your cow-orkers in order to have a size battle."
                         </p>

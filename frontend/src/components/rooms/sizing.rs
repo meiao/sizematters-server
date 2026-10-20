@@ -16,6 +16,7 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
+use crate::collate::compare_names;
 use crate::components::avatar::Avatar;
 use crate::components::ui::button::{Button, ButtonSize, ButtonVariant};
 use crate::components::ui::card::{
@@ -55,12 +56,16 @@ pub fn Room(room_name: String) -> impl IntoView {
             .unwrap_or_default()
     };
 
+    // Voter cards, sorted by name. Re-sorts when someone is renamed, since the room's
+    // user list is updated on UserUpdated.
     let rn_voters = room_name.clone();
     let voters = Memo::new(move |_| -> Vec<UserData> {
-        users()
+        let mut voters: Vec<UserData> = users()
             .into_iter()
             .filter(|u| !vote_store.is_spectator(&rn_voters, &u.user_id))
-            .collect()
+            .collect();
+        voters.sort_by(|a, b| compare_names(&a.name, &b.name));
+        voters
     });
 
     let rn_spectators = room_name.clone();
@@ -237,6 +242,9 @@ pub fn Room(room_name: String) -> impl IntoView {
                                     }
                                 })
                                 class="size-10 rounded-full text-base font-semibold sm:size-14 sm:text-xl"
+                                // Voting is over once results are shown; the server would only
+                                // answer VotingOver.
+                                attr:disabled=move || results_revealed.get()
                                 attr:aria-label=label
                                 attr:aria-pressed=move || (vote_val.get() == Some(num.to_string())).to_string()
                                 on:click=move |_| {

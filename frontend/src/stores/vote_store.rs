@@ -90,6 +90,13 @@ impl VoteStore {
         });
     }
 
+    /// Remove vote data for every room. See `RoomStore::clear`.
+    pub fn clear(&self) {
+        self.votes.update(|votes| votes.clear());
+        self.spectators.update(|spectators| spectators.clear());
+        self.results_revealed.update(|revealed| revealed.clear());
+    }
+
     pub fn user_joined(&self, room_name: &str, user_id: &str) {
         self.votes.update(|votes| {
             if let Some(room_votes) = votes.get_mut(room_name) {
