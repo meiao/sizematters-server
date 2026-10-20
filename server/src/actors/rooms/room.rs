@@ -138,22 +138,18 @@ impl<T: DeserializeOwned + 'static> Room<T> {
         let user = self.state.user_map.remove(&user_id);
         self.state.spectators.remove(&user_id);
 
-        match user {
-            None => {},
-            Some(user) => {
-                let msg = ClientResponseMessage::UserLeft {
-                    user_id: (*user_id).clone(),
-                    room_name: self.state.room_name(),
-                };
-                self.state.notify_users(msg);
+        if let Some(user) = user {
+            let msg = ClientResponseMessage::UserLeft {
+                user_id: (*user_id).clone(),
+                room_name: self.state.room_name(),
+            };
+            self.state.notify_users(msg);
 
-                self.behavior.on_leave_room(&user_id, &mut self.state);
-                let user_id = (*user_id).clone();
-                let room_name = self.state.room_name();
-                user.recipient
-                    .do_send(ClientResponseMessage::UserLeft { user_id, room_name });
-
-            }
+            self.behavior.on_leave_room(&user_id, &mut self.state);
+            let user_id = (*user_id).clone();
+            let room_name = self.state.room_name();
+            user.recipient
+                .do_send(ClientResponseMessage::UserLeft { user_id, room_name });
         }
 
         if self.state.user_map.is_empty() {

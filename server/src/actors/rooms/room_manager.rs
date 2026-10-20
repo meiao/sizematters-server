@@ -190,29 +190,23 @@ impl RoomManagerActor {
     }
 
     fn user_left(&mut self, user_id: Arc<String>) {
-        let rooms = self.user_room_map.remove(&user_id);
-        match rooms {
-            None => {}
-            Some(rooms) => rooms.iter().for_each(|room| {
+        if let Some(rooms) = self.user_room_map.remove(&user_id) {
+            rooms.iter().for_each(|room| {
                 self.notify_room(
                     room,
                     RoomMessages::UserLeft {
                         user_id: user_id.clone(),
                     },
                 );
-            }),
+            });
         }
     }
 
     fn user_updated(&mut self, user: UserData) {
-        let rooms = self.user_room_map.get(&user.user_id);
-        match rooms {
-            None => {}
-            Some(rooms) => {
-                rooms.iter().for_each(|room| {
-                    self.notify_room(room, RoomMessages::UserUpdated { user: user.clone() })
-                });
-            }
+        if let Some(rooms) = self.user_room_map.get(&user.user_id) {
+            rooms.iter().for_each(|room| {
+                self.notify_room(room, RoomMessages::UserUpdated { user: user.clone() })
+            });
         }
     }
 
