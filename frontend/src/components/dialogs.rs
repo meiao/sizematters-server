@@ -257,7 +257,12 @@ pub fn RoomDialog(show: RwSignal<bool>, on_confirm: Callback<RoomDialogAction>) 
                                     .enumerate()
                                     .map(|(index, rt)| {
                                         view! {
-                                            <option value=index.to_string()>{rt.display_name()}</option>
+                                            <option
+                                                value=index.to_string()
+                                                selected=move || room_type.get() == rt
+                                            >
+                                                {rt.display_name()}
+                                            </option>
                                         }
                                     })
                                     .collect_view()}
