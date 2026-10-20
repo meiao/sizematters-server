@@ -72,7 +72,6 @@ pub enum ClientResponseMessage {
         selected_user_id: String,
     },
     InvalidRoomName,
-    CannotJoinMultipleRooms,
     RoomMessage {
         room_name: String,
         payload: String,

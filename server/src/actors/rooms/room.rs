@@ -86,7 +86,7 @@ impl<T: DeserializeOwned + 'static> Handler<RoomMessages> for Room<T> {
                 recipient,
                 ..
             } => self.join_room(password, password_is_hash, user, recipient),
-            RoomMessages::LeaveRoom { user_id, .. } => self.leave_room(user_id, ctx),
+            RoomMessages::UserLeft { user_id } => self.user_left(user_id, ctx),
             RoomMessages::SpecificMessage {
                 user_id, payload, ..
             } => self.process_message(user_id, payload),
@@ -134,16 +134,23 @@ impl<T: DeserializeOwned + 'static> Room<T> {
         }
     }
 
-    fn leave_room(&mut self, user_id: Arc<String>, ctx: &mut Context<Self>) {
-        let msg = ClientResponseMessage::UserLeft {
-            user_id: (*user_id).clone(),
-            room_name: self.state.room_name(),
-        };
-        self.state.notify_users(msg);
-
-        self.state.user_map.remove(&user_id);
+    fn user_left(&mut self, user_id: Arc<String>, ctx: &mut Context<Self>) {
+        let user = self.state.user_map.remove(&user_id);
         self.state.spectators.remove(&user_id);
-        self.behavior.on_leave_room(&user_id, &mut self.state);
+
+        if let Some(user) = user {
+            let msg = ClientResponseMessage::UserLeft {
+                user_id: (*user_id).clone(),
+                room_name: self.state.room_name(),
+            };
+            self.state.notify_users(msg);
+
+            self.behavior.on_leave_room(&user_id, &mut self.state);
+            let user_id = (*user_id).clone();
+            let room_name = self.state.room_name();
+            user.recipient
+                .do_send(ClientResponseMessage::UserLeft { user_id, room_name });
+        }
 
         if self.state.user_map.is_empty() {
             self.behavior.on_room_closing(&mut self.state);
@@ -281,12 +288,10 @@ impl RoomState {
     ) {
         if let Err(err) = recipient.try_send(msg) {
             println!("RoomActor: Unable to reach ClientActor.\nError: {}", err);
-            self.remove_user(user_id.clone());
+            self.notify_manager(RoomMessages::UserLeft {
+                user_id: user_id.clone(),
+            });
         }
-    }
-
-    fn remove_user(&self, user_id: Arc<String>) {
-        self.notify_manager(RoomMessages::UserLeft { user_id });
     }
 
     fn notify_manager(&self, msg: RoomMessages) {
