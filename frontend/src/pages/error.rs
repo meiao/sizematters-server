@@ -33,7 +33,7 @@ pub fn ErrorPage() -> impl IntoView {
                 <WifiOff class="size-4 text-destructive" />
                 <AlertTitle>"There was a problem connecting the websocket."</AlertTitle>
                 <AlertDescription class="text-muted-foreground">
-                    "Go kick (with your fists) someone in your IT deparment and tell them it is a life or death situation."
+                    "Go kick (with your fists) someone in your IT department and tell them it is a life or death situation."
                 </AlertDescription>
             </Alert>
         </Show>
