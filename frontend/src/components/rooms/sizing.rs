@@ -55,12 +55,16 @@ pub fn Room(room_name: String) -> impl IntoView {
             .unwrap_or_default()
     };
 
+    // Voter cards, sorted by name. Re-sorts when someone is renamed, since the room's
+    // user list is updated on UserUpdated.
     let rn_voters = room_name.clone();
     let voters = Memo::new(move |_| -> Vec<UserData> {
-        users()
+        let mut voters: Vec<UserData> = users()
             .into_iter()
             .filter(|u| !vote_store.is_spectator(&rn_voters, &u.user_id))
-            .collect()
+            .collect();
+        voters.sort_by_key(|u| u.name.to_lowercase());
+        voters
     });
 
     let rn_spectators = room_name.clone();

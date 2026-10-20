@@ -72,8 +72,6 @@ pub fn UserCard(
             .unwrap_or_default()
     };
 
-    let order = move || calculate_order(&name());
-
     view! {
         <div
             data-name="UserCard"
@@ -82,7 +80,6 @@ pub fn UserCard(
             class=("ring-success", move || selected.get())
             class=("shadow-lg", move || selected.get())
             class:revealed=move || revealed.get() && has_voted()
-            style:order=order
         >
             <div class="flex min-h-12 flex-1 flex-col items-center justify-center px-6 py-2">
                 <Button
@@ -126,31 +123,4 @@ pub fn UserCard(
             </div>
         </div>
     }
-}
-
-/// Compute a CSS `order` value for alphabetical sorting of user cards.
-/// Uses Unicode scalar values, clamped to avoid overflow.
-fn calculate_order(name: &str) -> String {
-    let lower = name.to_lowercase();
-    let chars: Vec<char> = lower.chars().take(4).collect();
-    let padded: Vec<u32> = (0..4)
-        .map(|i| {
-            if i < chars.len() {
-                // Clamp to 2 digits: 'a'=10, 'z'=35, non-alpha gets 10
-                let c = chars[i] as u32;
-                let a = 'a' as u32;
-                if c >= a && c <= a + 25 {
-                    c - a + 10
-                } else {
-                    10
-                }
-            } else {
-                10
-            }
-        })
-        .collect();
-    padded
-        .iter()
-        .map(|n| format!("{:02}", n))
-        .collect::<String>()
 }
