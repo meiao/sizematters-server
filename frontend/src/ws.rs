@@ -366,11 +366,9 @@ fn process_jyanken_message(
     msg: JyankenResponseMessage,
     room_name: &str,
     room_store: RoomStore,
-    user_store: UserStore,
     jyanken_store: JyankenStore,
     last_error: RwSignal<Option<String>>,
 ) {
-    let _ = user_store;
     match msg {
         JyankenResponseMessage::OwnShoot { weapon } => jyanken_store.own_shoot(room_name, weapon),
         JyankenResponseMessage::GameStatus {
@@ -456,7 +454,6 @@ fn process_message(
                             msg,
                             &room_name,
                             room_store,
-                            user_store,
                             jyanken_store,
                             last_error,
                         ),
