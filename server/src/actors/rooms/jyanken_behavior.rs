@@ -50,6 +50,7 @@ impl RoomBehavior<JyankenRequestMessage> for JyankenBehavior {
 
     fn on_leave_room(&mut self, user_id: &Arc<String>, room: &mut RoomState) {
         self.weapon_map.remove(user_id);
+        self.score.remove(user_id);
         self.send_game_info(room);
     }
 
