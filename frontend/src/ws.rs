@@ -133,6 +133,13 @@ impl WsContext {
             SOCKET.with(|s| {
                 *s.borrow_mut() = Some(socket_clone.clone());
             });
+            // The server treats every socket as a new user, with a new id, so whatever we
+            // knew about our rooms (members, votes, spectators) is stale after a reconnect.
+            // Drop it and let restore_data() rejoin the rooms and rebuild it. Rooms that
+            // can't be rejoined (e.g. the password changed) no longer linger in the UI.
+            room_store.clear();
+            vote_store.clear();
+            jyanken_store.clear();
             restore_data();
         });
         socket.set_onopen(Some(onopen.as_ref().unchecked_ref()));
@@ -241,20 +248,21 @@ fn send_message(msg: ClientRequestMessage) {
     });
 }
 
-/// Restore user name and avatar style from localStorage after reconnecting.
+/// Restore user name, avatar style and rooms from localStorage after (re)connecting.
+/// Does nothing when localStorage is unavailable.
 fn restore_data() {
-    let storage = web_sys::window().unwrap().local_storage().unwrap();
-    if let Some(storage) = storage {
-        if let Ok(Some(name)) = storage.get_item("name") {
-            send_message(ClientRequestMessage::SetName { name });
-        }
-        if let Ok(Some(saved)) = storage.get_item("avatar_style") {
-            if let Ok(avatar_style) = serde_json::from_str::<AvatarStyle>(&saved) {
-                send_message(ClientRequestMessage::SetAvatarStyle { avatar_style });
-            }
-        }
-        restore_rooms();
+    let Some(storage) = room_storage::local_storage() else {
+        return;
+    };
+    if let Ok(Some(name)) = storage.get_item("name") {
+        send_message(ClientRequestMessage::SetName { name });
     }
+    if let Ok(Some(saved)) = storage.get_item("avatar_style") {
+        if let Ok(avatar_style) = serde_json::from_str::<AvatarStyle>(&saved) {
+            send_message(ClientRequestMessage::SetAvatarStyle { avatar_style });
+        }
+    }
+    restore_rooms();
 }
 
 /// Recreate (or join, if it still exists) every room saved in localStorage.
@@ -458,16 +466,14 @@ pub fn ws_register() {
 }
 
 pub fn ws_set_name(name: String) {
-    let storage = web_sys::window().unwrap().local_storage().unwrap();
-    if let Some(storage) = storage {
+    if let Some(storage) = room_storage::local_storage() {
         let _ = storage.set_item("name", &name);
     }
     send_message(ClientRequestMessage::SetName { name });
 }
 
 pub fn ws_set_avatar_style(avatar_style: AvatarStyle) {
-    let storage = web_sys::window().unwrap().local_storage().unwrap();
-    if let Some(storage) = storage {
+    if let Some(storage) = room_storage::local_storage() {
         if let Ok(json) = serde_json::to_string(&avatar_style) {
             let _ = storage.set_item("avatar_style", &json);
         }

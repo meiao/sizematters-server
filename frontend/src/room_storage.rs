@@ -45,7 +45,9 @@ fn room_key(room_name: &str) -> String {
     format!("room.{room_name}")
 }
 
-fn local_storage() -> Option<web_sys::Storage> {
+/// The page's localStorage, or `None` when it is unavailable (e.g. blocked by privacy
+/// settings or a sandboxed iframe, where `window.localStorage` throws).
+pub(crate) fn local_storage() -> Option<web_sys::Storage> {
     web_sys::window()?.local_storage().ok().flatten()
 }
 

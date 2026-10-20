@@ -46,6 +46,8 @@ impl RoomStore {
         self.rooms
     }
 
+    /// Record a joined room. If the room is already known (e.g. it was rejoined after a
+    /// reconnect), its data is replaced with the server's, keeping its position in the list.
     pub fn room_joined(
         &self,
         room_name: String,
@@ -54,16 +56,24 @@ impl RoomStore {
         users: Vec<UserData>,
     ) {
         self.rooms.update(|rooms| {
-            if !rooms.iter().any(|r| r.room_name == room_name) {
-                rooms.push(RoomStatus {
-                    room_name,
-                    hashed_password,
-                    room_type,
-                    users,
-                    selected_user: None,
-                });
+            let status = RoomStatus {
+                room_name,
+                hashed_password,
+                room_type,
+                users,
+                selected_user: None,
+            };
+            match rooms.iter_mut().find(|r| r.room_name == status.room_name) {
+                Some(existing) => *existing = status,
+                None => rooms.push(status),
             }
         });
+    }
+
+    /// Forget every room. Used when the connection is re-established, since the server
+    /// gives us a new user id and the rooms get rejoined from localStorage.
+    pub fn clear(&self) {
+        self.rooms.update(|rooms| rooms.clear());
     }
 
     pub fn user_joined(&self, room_name: &str, user: UserData) {
