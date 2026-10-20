@@ -24,13 +24,13 @@ use actix::Actor;
 use regex::Regex;
 use sizematters_shared::messages::ClientResponseMessage;
 use sizematters_shared::UserData;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 
 /// Room manager. This is an actor that knows about all the created rooms and where each user is.
 pub struct RoomManagerActor {
     rooms: HashMap<Arc<String>, Recipient<RoomMessages>>,
-    user_room_map: HashMap<Arc<String>, Arc<String>>,
+    user_room_map: HashMap<Arc<String>, HashSet<Arc<String>>>,
     room_name_validator: Regex,
 }
 
@@ -181,33 +181,39 @@ impl RoomManagerActor {
     fn leave_room(&mut self, user_id: Arc<String>, room_name: Arc<String>) {
         match self.user_room_map.get_mut(&user_id) {
             None => (),
-            Some(_) => {
-                let _ = self.user_room_map.remove(&user_id);
+            Some(rooms) => {
+                let removed = rooms.remove(&room_name);
+                if removed {
+                    self.notify_room(&room_name, RoomMessages::UserLeft { user_id });
+                }
             }
         };
-
-        match self.rooms.get(&room_name) {
-            None => println!(
-                "RoomManager: {} tried to exit {} which does not exist",
-                user_id, room_name
-            ),
-            Some(room) => room.do_send(RoomMessages::LeaveRoom { user_id, room_name }),
-        }
     }
 
     fn user_left(&mut self, user_id: Arc<String>) {
-        let room_name = self.user_room_map.remove(&user_id);
-        match room_name {
+        let rooms = self.user_room_map.remove(&user_id);
+        match rooms {
             None => {}
-            Some(room) => self.leave_room(user_id.clone(), room),
+            Some(rooms) => rooms.iter().for_each(|room| {
+                self.notify_room(
+                    room,
+                    RoomMessages::UserLeft {
+                        user_id: user_id.clone(),
+                    },
+                );
+            }),
         }
     }
 
     fn user_updated(&mut self, user: UserData) {
-        let room_name = self.user_room_map.get(&user.user_id);
-        match room_name {
+        let rooms = self.user_room_map.get(&user.user_id);
+        match rooms {
             None => {}
-            Some(room) => self.notify_room(room, RoomMessages::UserUpdated { user }),
+            Some(rooms) => {
+                rooms.iter().for_each(|room| {
+                    self.notify_room(room, RoomMessages::UserUpdated { user: user.clone() })
+                });
+            }
         }
     }
 
@@ -223,7 +229,10 @@ impl RoomManagerActor {
     }
 
     fn user_joined(&mut self, user_name: Arc<String>, room_name: Arc<String>) {
-        self.user_room_map.insert(user_name, room_name);
+        self.user_room_map
+            .entry(user_name)
+            .or_default()
+            .insert(room_name);
     }
 
     fn notify_room(&self, room_name: &Arc<String>, msg: RoomMessages) {
