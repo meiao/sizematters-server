@@ -242,6 +242,9 @@ pub fn Room(room_name: String) -> impl IntoView {
                                     }
                                 })
                                 class="size-10 rounded-full text-base font-semibold sm:size-14 sm:text-xl"
+                                // Voting is over once results are shown; the server would only
+                                // answer VotingOver.
+                                attr:disabled=move || results_revealed.get()
                                 attr:aria-label=label
                                 attr:aria-pressed=move || (vote_val.get() == Some(num.to_string())).to_string()
                                 on:click=move |_| {
