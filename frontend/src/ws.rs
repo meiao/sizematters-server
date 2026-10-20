@@ -439,9 +439,6 @@ fn process_message(
         ClientResponseMessage::AlreadyInRoom { room_name } => {
             last_error.set(Some(format!("You are already in room '{}'.", room_name)));
         }
-        ClientResponseMessage::CannotJoinMultipleRooms => {
-            last_error.set(Some("You can only be in one room at a time.".to_string()));
-        }
         ClientResponseMessage::Error { msg } => {
             last_error.set(Some(msg));
         }
