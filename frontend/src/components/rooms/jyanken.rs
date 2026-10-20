@@ -16,6 +16,7 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
+use crate::collate::compare_names;
 use crate::components::avatar::Avatar;
 use crate::components::ui::badge::{Badge, BadgeSize, BadgeVariant};
 use crate::components::ui::button::{Button, ButtonSize, ButtonVariant};
@@ -85,7 +86,7 @@ pub fn JyankenRoom(room_name: String) -> impl IntoView {
             .into_iter()
             .filter(|u| !s.spectators.contains(&u.user_id))
             .collect();
-        players.sort_by_key(|u| u.name.to_lowercase());
+        players.sort_by(|a, b| compare_names(&a.name, &b.name));
         players
     });
     let spectators = Memo::new(move |_| -> Vec<UserData> {
@@ -117,7 +118,7 @@ pub fn JyankenRoom(room_name: String) -> impl IntoView {
                 (name, *last, *total)
             })
             .collect();
-        rows.sort_by(|a, b| b.2.cmp(&a.2).then_with(|| a.0.cmp(&b.0)));
+        rows.sort_by(|a, b| b.2.cmp(&a.2).then_with(|| compare_names(&a.0, &b.0)));
         rows
     });
 

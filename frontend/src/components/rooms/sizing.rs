@@ -16,6 +16,7 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
+use crate::collate::compare_names;
 use crate::components::avatar::Avatar;
 use crate::components::ui::button::{Button, ButtonSize, ButtonVariant};
 use crate::components::ui::card::{
@@ -63,7 +64,7 @@ pub fn Room(room_name: String) -> impl IntoView {
             .into_iter()
             .filter(|u| !vote_store.is_spectator(&rn_voters, &u.user_id))
             .collect();
-        voters.sort_by_key(|u| u.name.to_lowercase());
+        voters.sort_by(|a, b| compare_names(&a.name, &b.name));
         voters
     });
 
