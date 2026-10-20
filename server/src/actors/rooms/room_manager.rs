@@ -117,13 +117,12 @@ impl RoomManagerActor {
                 let room = self.rooms.get(&room_name).unwrap();
                 room.do_send(msg);
             }
-            Some(_) => {
-                println!("RoomManager: User trying to join a second room.");
-                self.notify_user(
-                    &user_id,
-                    &recipient,
-                    ClientResponseMessage::CannotJoinMultipleRooms,
-                );
+            Some(rooms) => {
+                if !rooms.contains(&room_name) {
+                    if let Some(room) = self.rooms.get(&room_name) {
+                        room.do_send(msg);
+                    }
+                }
             }
         }
     }
