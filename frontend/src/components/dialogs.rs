@@ -171,6 +171,13 @@ pub fn RoomDialog(show: RwSignal<bool>, on_confirm: Callback<RoomDialogAction>) 
     let room_link = RwSignal::new(String::new());
     let link_error = RwSignal::new(false);
     let has_link = move || !room_link.with(|link| link.trim().is_empty());
+    // Example link on the current site, e.g. `https://sizematters.dev/room/...`.
+    let link_placeholder = StoredValue::new(format!(
+        "{}/room/...",
+        web_sys::window()
+            .and_then(|w| w.location().origin().ok())
+            .unwrap_or_default()
+    ));
 
     let reset = move || {
         room_name.set(String::new());
@@ -305,7 +312,7 @@ pub fn RoomDialog(show: RwSignal<bool>, on_confirm: Callback<RoomDialogAction>) 
                         <Input
                             id="room-link-input"
                             autocomplete="off"
-                            placeholder="https://sizematters.dev/room/..."
+                            placeholder=link_placeholder.get_value()
                             bind_value=room_link
                             attr:aria-describedby="room-link-hint"
                             attr:aria-invalid=move || link_error.get().to_string()
