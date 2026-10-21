@@ -20,6 +20,4 @@ pub mod avatar;
 pub mod dialogs;
 pub mod main_menu;
 pub mod no_menu;
-pub mod rooms;
 pub mod ui;
-pub mod user_card;

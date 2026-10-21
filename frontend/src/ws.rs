@@ -17,13 +17,11 @@
  */
 
 use crate::room_storage;
-use crate::stores::{JyankenStore, RoomStore, UserStore, VoteStore};
+use crate::rooms::{HandlerCtx, RoomStores};
+use crate::stores::{RoomStore, UserStore};
 use leptos::prelude::*;
 use sizematters_shared::avatar::AvatarStyle;
-use sizematters_shared::messages::jyanken::JyankenResponseMessage;
-use sizematters_shared::messages::{
-    ClientRequestMessage, ClientResponseMessage, SizingResponseMessage,
-};
+use sizematters_shared::messages::{ClientRequestMessage, ClientResponseMessage};
 use sizematters_shared::RoomType;
 use wasm_bindgen::prelude::*;
 use web_sys::WebSocket;
@@ -40,17 +38,11 @@ pub struct WsContext {
     registered: RwSignal<bool>,
     room_store: RoomStore,
     user_store: UserStore,
-    vote_store: VoteStore,
-    jyanken_store: JyankenStore,
+    rooms: RoomStores,
 }
 
 impl WsContext {
-    pub fn new(
-        room_store: RoomStore,
-        user_store: UserStore,
-        vote_store: VoteStore,
-        jyanken_store: JyankenStore,
-    ) -> Self {
+    pub fn new(room_store: RoomStore, user_store: UserStore, rooms: RoomStores) -> Self {
         Self {
             connected: RwSignal::new(false),
             last_error: RwSignal::new(None),
@@ -58,8 +50,7 @@ impl WsContext {
             registered: RwSignal::new(false),
             room_store,
             user_store,
-            vote_store,
-            jyanken_store,
+            rooms,
         }
     }
 
@@ -121,8 +112,7 @@ impl WsContext {
         let last_error = self.last_error;
         let room_store = self.room_store;
         let user_store = self.user_store;
-        let vote_store = self.vote_store;
-        let jyanken_store = self.jyanken_store;
+        let rooms = self.rooms;
 
         let socket_clone = socket.clone();
 
@@ -141,8 +131,7 @@ impl WsContext {
             // Drop it and let restore_data() rejoin the rooms and rebuild it. Rooms that
             // can't be rejoined (e.g. the password changed) no longer linger in the UI.
             room_store.clear();
-            vote_store.clear();
-            jyanken_store.clear();
+            rooms.clear();
             restore_data();
         });
         socket.set_onopen(Some(onopen.as_ref().unchecked_ref()));
@@ -153,14 +142,7 @@ impl WsContext {
             Closure::<dyn Fn(web_sys::MessageEvent)>::new(move |e: web_sys::MessageEvent| {
                 if let Some(text) = e.data().as_string() {
                     match serde_json::from_str::<ClientResponseMessage>(&text) {
-                        Ok(msg) => process_message(
-                            msg,
-                            room_store,
-                            user_store,
-                            vote_store,
-                            jyanken_store,
-                            last_error,
-                        ),
+                        Ok(msg) => process_message(msg, room_store, user_store, rooms, last_error),
                         Err(err) => log::warn!("Failed to parse message: {}", err),
                     }
                 }
@@ -329,75 +311,13 @@ fn speak_selected_user(user_store: &UserStore, selected_user_id: &str) {
     }
 }
 
-/// Route a sizing-room payload carried inside a `RoomMessage`.
-fn process_sizing_message(
-    msg: SizingResponseMessage,
-    room_name: &str,
-    room_store: RoomStore,
-    user_store: UserStore,
-    vote_store: VoteStore,
-    last_error: RwSignal<Option<String>>,
-) {
-    match msg {
-        SizingResponseMessage::OwnVote { size } => {
-            let own_id = user_store.own_user_id_untracked();
-            vote_store.own_vote(room_name, &own_id, size);
-        }
-        SizingResponseMessage::VoteStatus { votes, spectators } => {
-            vote_store.vote_status(room_name, &votes);
-            vote_store.set_spectators(room_name, &spectators);
-        }
-        SizingResponseMessage::VoteResults { votes } => {
-            vote_store.mark_as_voters(room_name, votes.keys().cloned());
-            vote_store.vote_results(room_name, &votes);
-        }
-        SizingResponseMessage::NewVote => {
-            room_store.new_vote(room_name);
-            vote_store.new_vote(room_name);
-        }
-        SizingResponseMessage::VotingOver => {
-            last_error.set(Some("Voting is already over.".to_string()));
-        }
-    }
-}
-
-/// Route a jyanken-room payload carried inside a `RoomMessage`.
-fn process_jyanken_message(
-    msg: JyankenResponseMessage,
-    room_name: &str,
-    room_store: RoomStore,
-    jyanken_store: JyankenStore,
-    last_error: RwSignal<Option<String>>,
-) {
-    match msg {
-        JyankenResponseMessage::OwnShoot { weapon } => jyanken_store.own_shoot(room_name, weapon),
-        JyankenResponseMessage::GameStatus {
-            selected,
-            spectators,
-        } => {
-            jyanken_store.game_status(room_name, selected, spectators);
-        }
-        JyankenResponseMessage::GameResults {
-            weapons,
-            scoreboard,
-        } => jyanken_store.game_results(room_name, weapons, scoreboard),
-        JyankenResponseMessage::NewGame => {
-            room_store.new_vote(room_name);
-            jyanken_store.new_game(room_name);
-        }
-        JyankenResponseMessage::GameOver => {
-            last_error.set(Some("The game is already over.".to_string()));
-        }
-    }
-}
-
-/// Route an incoming server message to the appropriate stores.
+/// Route an incoming server message to the appropriate stores. Messages for a specific room
+/// type are handed to that type's handler, through `rooms`.
 fn process_message(
     msg: ClientResponseMessage,
     room_store: RoomStore,
     user_store: UserStore,
-    vote_store: VoteStore,
-    jyanken_store: JyankenStore,
+    rooms: RoomStores,
     last_error: RwSignal<Option<String>>,
 ) {
     match msg {
@@ -412,20 +332,21 @@ fn process_message(
         } => {
             let user_ids: Vec<String> = users.iter().map(|u| u.user_id.clone()).collect();
             user_store.room_joined(&users);
-            vote_store.room_joined(&room_name, &user_ids);
-            jyanken_store.room_joined(&room_name, &user_ids);
+            rooms.room_joined(room_type, &room_name, &user_ids);
             room_storage::save_room(&room_name, &hashed_password, room_type);
             room_store.room_joined(room_name, hashed_password, room_type, users);
         }
         ClientResponseMessage::UserJoined { room_name, user } => {
             user_store.user_updated(user.clone());
-            vote_store.user_joined(&room_name, &user.user_id);
-            jyanken_store.user_joined(&room_name, &user.user_id);
+            if let Some(room_type) = room_store.room_type_untracked(&room_name) {
+                rooms.user_joined(room_type, &room_name, &user.user_id);
+            }
             room_store.user_joined(&room_name, user);
         }
         ClientResponseMessage::UserLeft { room_name, user_id } => {
-            vote_store.user_left(&room_name, &user_id);
-            jyanken_store.user_left(&room_name, &user_id);
+            if let Some(room_type) = room_store.room_type_untracked(&room_name) {
+                rooms.user_left(room_type, &room_name, &user_id);
+            }
             room_store.user_left(&room_name, &user_id);
         }
         ClientResponseMessage::UserUpdated { user } => {
@@ -433,32 +354,14 @@ fn process_message(
             user_store.user_updated(user);
         }
         ClientResponseMessage::RoomMessage { room_name, payload } => {
-            let room_type = room_store.rooms_signal().with_untracked(|rooms| {
-                rooms
-                    .iter()
-                    .find(|r| r.room_name == room_name)
-                    .map(|r| r.room_type)
-            });
-            match room_type {
-                Some(RoomType::Sizing) => {
-                    match serde_json::from_str::<SizingResponseMessage>(&payload) {
-                        Ok(msg) => process_sizing_message(
-                            msg, &room_name, room_store, user_store, vote_store, last_error,
-                        ),
-                        Err(err) => log::warn!("Failed to parse room message: {}", err),
-                    }
-                }
-                Some(RoomType::Jyanken) => {
-                    match serde_json::from_str::<JyankenResponseMessage>(&payload) {
-                        Ok(msg) => process_jyanken_message(
-                            msg,
-                            &room_name,
-                            room_store,
-                            jyanken_store,
-                            last_error,
-                        ),
-                        Err(err) => log::warn!("Failed to parse room message: {}", err),
-                    }
+            match room_store.room_type_untracked(&room_name) {
+                Some(room_type) => {
+                    let ctx = HandlerCtx {
+                        room_store,
+                        user_store,
+                        last_error,
+                    };
+                    rooms.handle_message(room_type, &room_name, &payload, ctx);
                 }
                 None => log::warn!("Room message for unknown room '{}'", room_name),
             }

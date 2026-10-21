@@ -22,7 +22,8 @@ use crate::pages::connecting::ConnectingPage;
 use crate::pages::error::ErrorPage;
 use crate::pages::home::HomePage;
 use crate::pages::main_view::MainPage;
-use crate::stores::{JyankenStore, RoomStore, UserStore, VoteStore};
+use crate::rooms::RoomStores;
+use crate::stores::{RoomStore, UserStore};
 use crate::ws::WsContext;
 use leptos::prelude::*;
 use leptos_router::components::{Route, Router, Routes};
@@ -33,14 +34,12 @@ use leptos_router::path;
 pub fn App() -> impl IntoView {
     let user_store = UserStore::new();
     let room_store = RoomStore::new();
-    let vote_store = VoteStore::new();
-    let jyanken_store = JyankenStore::new();
-    let ws_ctx = WsContext::new(room_store, user_store, vote_store, jyanken_store);
+    let rooms = RoomStores::new();
+    let ws_ctx = WsContext::new(room_store, user_store, rooms);
 
     provide_context(user_store);
     provide_context(room_store);
-    provide_context(vote_store);
-    provide_context(jyanken_store);
+    rooms.provide();
     provide_context(ws_ctx);
 
     view! {

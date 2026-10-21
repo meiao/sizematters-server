@@ -19,67 +19,41 @@
 use crate::components::avatar::Avatar;
 use crate::components::ui::badge::{Badge, BadgeSize, BadgeVariant};
 use crate::components::ui::button::{Button, ButtonSize, ButtonVariant};
-use crate::stores::{UserStore, VoteStore};
 use icons::{Check, CircleHelp, EyeOff};
 use leptos::prelude::*;
 
+/// A player's card: name, a "done" badge and a button to move them to the spectators on top,
+/// their avatar below. When `revealed`, the avatar flips over to show `children` (their vote,
+/// their weapon, ...).
 #[component]
-pub fn UserCard(
-    user_id: String,
-    room_name: String,
-    /// Everyone has voted, so cards flip over to show the vote.
+pub fn PlayerCard(
+    #[prop(into)] name: Signal<String>,
+    #[prop(into)] avatar: Signal<String>,
+    /// Whether the player already played this round (voted, shot, ...).
+    #[prop(into)]
+    done: Signal<bool>,
+    /// Flip the card over to show its back face.
     #[prop(into)]
     revealed: Signal<bool>,
-    /// Picked by the randomizer.
-    #[prop(into)]
+    /// Highlight the card, e.g. when picked by the randomizer.
+    #[prop(into, default = Signal::stored(false))]
     selected: Signal<bool>,
-    /// Called with the user's id when someone moves them to the spectators.
-    on_revoke: Callback<String>,
+    /// Called when someone moves this player to the spectators.
+    on_remove: Callback<()>,
+    /// The back face of the card.
+    children: Children,
 ) -> impl IntoView {
-    let user_store = expect_context::<UserStore>();
-    let vote_store = expect_context::<VoteStore>();
-
-    let uid = user_id.clone();
-    let user_data = Memo::new(move |_| {
-        let users = user_store.user_signal().get();
-        users.get(&uid).cloned()
-    });
-
-    let uid2 = user_id.clone();
-    let rn2 = room_name.clone();
-    let user_vote = Memo::new(move |_| {
-        let votes = vote_store.votes_signal().get();
-        votes.get(&rn2).and_then(|rv| rv.get(&uid2)).cloned()
-    });
-
-    let name = move || user_data.get().map(|u| u.name.clone()).unwrap_or_default();
-
-    // Memo for avatar so the <img> only re-creates when it actually changes.
-    let avatar = Memo::new(move |_| {
-        user_data
-            .get()
-            .map(|u| u.avatar.clone())
-            .unwrap_or_default()
-    });
-
-    let has_voted = move || user_vote.get().map(|v| v.has_voted).unwrap_or(false);
-
-    let vote_value = move || {
-        user_vote
-            .get()
-            .and_then(|v| v.value)
-            .map(|v| v.to_string())
-            .unwrap_or_default()
-    };
+    // Only re-create the <img> when the avatar actually changes.
+    let avatar = Memo::new(move |_| avatar.get());
 
     view! {
         <div
-            data-name="UserCard"
+            data-name="PlayerCard"
             class="relative flex w-28 flex-col overflow-hidden rounded-xl border bg-card text-card-foreground shadow-sm transition-shadow sm:w-36"
             class=("ring-3", move || selected.get())
             class=("ring-success", move || selected.get())
             class=("shadow-lg", move || selected.get())
-            class:revealed=move || revealed.get() && has_voted()
+            class:revealed=move || revealed.get()
         >
             <div class="flex min-h-12 flex-1 flex-col items-center justify-center px-6 py-2">
                 <Button
@@ -88,15 +62,14 @@ pub fn UserCard(
                     class="absolute top-1.5 left-1.5 text-muted-foreground"
                     attr:title="Move to spectators"
                     attr:aria-label="Move to spectators"
-                    on:click={
-                        let uid = user_id.clone();
-                        move |_| on_revoke.run(uid.clone())
-                    }
+                    on:click=move |_| on_remove.run(())
                 >
                     <EyeOff class="size-3.5" />
                 </Button>
-                <span class="line-clamp-2 text-center text-sm leading-tight font-medium break-words">{name}</span>
-                {move || if has_voted() {
+                <span class="line-clamp-2 text-center text-sm leading-tight font-medium break-words">
+                    {move || name.get()}
+                </span>
+                {move || if done.get() {
                     view! {
                         <Badge variant=BadgeVariant::Default size=BadgeSize::Sm class="absolute top-1.5 right-1.5 size-5 justify-center rounded-full p-0 bg-success text-success-foreground" attr:aria-hidden="true">
                             <Check class="size-3" />
@@ -112,13 +85,10 @@ pub fn UserCard(
             </div>
             <div class="relative aspect-square overflow-hidden perspective-[1000px]">
                 <div class="flip-face flip-front size-full">
-                    {move || {
-                        let avatar = avatar.get();
-                        view! { <Avatar avatar=avatar /> }
-                    }}
+                    {move || view! { <Avatar avatar=avatar.get() /> }}
                 </div>
-                <div class="flip-face flip-back absolute inset-0 flex items-center justify-center bg-card text-4xl font-semibold sm:text-6xl">
-                    {vote_value}
+                <div class="flip-face flip-back absolute inset-0 flex flex-col items-center justify-center gap-1 bg-card">
+                    {children()}
                 </div>
             </div>
         </div>

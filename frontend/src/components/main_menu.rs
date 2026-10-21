@@ -20,7 +20,8 @@ use crate::components::dialogs::{AvatarStyleDialog, PromptDialog, RoomDialog, Ro
 use crate::components::ui::avatar::{Avatar, AvatarFallback, AvatarImage, AvatarSize};
 use crate::components::ui::button::{Button, ButtonSize, ButtonVariant};
 use crate::components::ui::card::{Card, CardAction, CardHeader, CardSize, CardTitle};
-use crate::stores::{JyankenStore, RoomStore, UserStore, VoteStore};
+use crate::rooms::RoomStores;
+use crate::stores::{RoomStore, UserStore};
 use crate::ws;
 use icons::{Plus, UserPen};
 use leptos::prelude::*;
@@ -30,8 +31,7 @@ use sizematters_shared::avatar::AvatarStyle;
 pub fn MainMenu() -> impl IntoView {
     let user_store = expect_context::<UserStore>();
     let room_store = expect_context::<RoomStore>();
-    let vote_store = expect_context::<VoteStore>();
-    let jyanken_store = expect_context::<JyankenStore>();
+    let rooms_stores = expect_context::<RoomStores>();
 
     let show_name_dialog = RwSignal::new(false);
     let show_avatar_dialog = RwSignal::new(false);
@@ -161,8 +161,7 @@ pub fn MainMenu() -> impl IntoView {
                                         on:click=move |_| {
                                             ws::ws_leave_room(rn2.clone());
                                             room_store.leave_room(&rn2);
-                                            vote_store.leave_room(&rn2);
-                                            jyanken_store.leave_room(&rn2);
+                                            rooms_stores.leave(&rn2);
                                         }
                                     >
                                         "Leave"

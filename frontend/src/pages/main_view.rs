@@ -16,18 +16,16 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-use crate::components::rooms::jyanken::JyankenRoom;
-use crate::components::rooms::sizing::Room;
 use crate::components::ui::alert::{Alert, AlertDescription, AlertTitle};
 use crate::components::ui::button::{Button, ButtonSize, ButtonVariant};
 use crate::components::ui::empty::{
     Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyMediaVariant, EmptyTitle,
 };
+use crate::rooms::RoomView;
 use crate::stores::{RoomStore, UserStore};
 use crate::ws::WsContext;
 use icons::{ArrowLeft, CircleAlert, Sparkles, X};
 use leptos::prelude::*;
-use sizematters_shared::RoomType;
 
 #[component]
 pub fn MainPage() -> impl IntoView {
@@ -97,13 +95,8 @@ pub fn MainPage() -> impl IntoView {
                 key=|room| room.room_name.clone()
                 let:room
             >
-                {
-                    let rn = room.room_name.clone();
-                    match room.room_type {
-                        RoomType::Sizing => view! { <Room room_name=rn /> }.into_any(),
-                        RoomType::Jyanken => view! { <JyankenRoom room_name=rn /> }.into_any(),
-                    }
-                }
+                <RoomView room_name=room.room_name room_type=room.room_type />
+
             </For>
 
             <Show when=move || rooms.get().is_empty()>

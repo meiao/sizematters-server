@@ -16,12 +16,8 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-pub mod jyanken_store;
 pub mod room_store;
 pub mod user_store;
-pub mod vote_store;
 
-pub use jyanken_store::JyankenStore;
 pub use room_store::RoomStore;
 pub use user_store::UserStore;
-pub use vote_store::VoteStore;
