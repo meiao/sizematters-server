@@ -21,6 +21,7 @@ mod collate;
 mod components;
 mod pages;
 mod room_storage;
+mod room_url;
 mod rooms;
 mod stores;
 mod ws;

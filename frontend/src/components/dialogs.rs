@@ -22,6 +22,7 @@ use crate::components::ui::dialog::{
 };
 use crate::components::ui::input::{Input, InputType};
 use crate::components::ui::label::Label;
+use crate::room_url::{parse_room_url, RoomUrl};
 use leptos::prelude::*;
 use sizematters_shared::avatar::AvatarStyle;
 use sizematters_shared::RoomType;
@@ -144,8 +145,8 @@ enum RoomDialogMode {
     Create,
 }
 
-/// The outcome of confirming `RoomDialog`: either join an existing room, or create one of a
-/// given `RoomType`.
+/// The outcome of confirming `RoomDialog`: join an existing room, create one of a given
+/// `RoomType`, or open a pasted room URL (which carries an already-hashed password).
 #[derive(Clone)]
 pub enum RoomDialogAction {
     Join {
@@ -157,6 +158,7 @@ pub enum RoomDialogAction {
         password: String,
         room_type: RoomType,
     },
+    Url(RoomUrl),
 }
 
 /// Modal dialog for creating/joining a room with name and password fields.
@@ -166,9 +168,39 @@ pub fn RoomDialog(show: RwSignal<bool>, on_confirm: Callback<RoomDialogAction>) 
     let room_name = RwSignal::new(String::new());
     let room_password = RwSignal::new(String::new());
     let room_type = RwSignal::new(RoomType::iter().next().expect("RoomType has no variants"));
+    let room_link = RwSignal::new(String::new());
+    let link_error = RwSignal::new(false);
+    let has_link = move || !room_link.with(|link| link.trim().is_empty());
+    // Example link on the current site, e.g. `https://sizematters.dev/room/...`.
+    let link_placeholder = StoredValue::new(format!(
+        "{}/room/...",
+        web_sys::window()
+            .and_then(|w| w.location().origin().ok())
+            .unwrap_or_default()
+    ));
+
+    let reset = move || {
+        room_name.set(String::new());
+        room_password.set(String::new());
+        room_link.set(String::new());
+        link_error.set(false);
+    };
 
     let on_submit = move |e: leptos::ev::SubmitEvent| {
         e.prevent_default();
+        // A pasted link takes precedence over the name/password fields.
+        if has_link() {
+            match parse_room_url(&room_link.get()) {
+                Some(room_url) => {
+                    on_confirm.run(RoomDialogAction::Url(room_url));
+                    show.set(false);
+                    reset();
+                }
+                // Keep the dialog open so the user can fix the link.
+                None => link_error.set(true),
+            }
+            return;
+        }
         let name = room_name.get();
         let password = room_password.get();
         if !name.is_empty() {
@@ -186,9 +218,14 @@ pub fn RoomDialog(show: RwSignal<bool>, on_confirm: Callback<RoomDialogAction>) 
             on_confirm.run(action);
         }
         show.set(false);
-        room_name.set(String::new());
-        room_password.set(String::new());
+        reset();
     };
+
+    // Clear a stale error as soon as the link is edited.
+    Effect::new(move |_| {
+        room_link.track();
+        link_error.set(false);
+    });
 
     view! {
         <Dialog open=show labelledby="room-dialog-title">
@@ -204,6 +241,7 @@ pub fn RoomDialog(show: RwSignal<bool>, on_confirm: Callback<RoomDialogAction>) 
                             <br />
                             "Then share it with your cow-orkers in order to have a size battle."
                         </p>
+                        <p>"If you were given a room link instead, paste it in the Room Link field."</p>
                     </DialogDescription>
                 </DialogHeader>
                 <DialogBody>
@@ -269,13 +307,43 @@ pub fn RoomDialog(show: RwSignal<bool>, on_confirm: Callback<RoomDialogAction>) 
                             </select>
                         </div>
                     </Show>
+                    <div class="flex flex-col gap-2">
+                        <Label html_for="room-link-input">"Room Link"</Label>
+                        <Input
+                            id="room-link-input"
+                            autocomplete="off"
+                            placeholder=link_placeholder.get_value()
+                            bind_value=room_link
+                            attr:aria-describedby="room-link-hint"
+                            attr:aria-invalid=move || link_error.get().to_string()
+                        />
+                        <p id="room-link-hint" class="text-sm text-muted-foreground">
+                            "When a link is given, the fields above are ignored."
+                        </p>
+                        <Show when=move || link_error.get()>
+                            <p class="text-sm text-destructive" role="alert">
+                                "That doesn't look like a room link."
+                            </p>
+                        </Show>
+                    </div>
                 </DialogBody>
                 <DialogFooter>
-                    <Button variant=ButtonVariant::Outline attr:r#type="button" on:click=move |_| show.set(false)>
+                    <Button variant=ButtonVariant::Outline attr:r#type="button" on:click=move |_| {
+                        show.set(false);
+                        reset();
+                    }>
                         "Close"
                     </Button>
                     <Button attr:r#type="submit">
-                        {move || if mode.get() == RoomDialogMode::Create { "Create" } else { "Join" }}
+                        {move || {
+                            if has_link() {
+                                "Open link"
+                            } else if mode.get() == RoomDialogMode::Create {
+                                "Create"
+                            } else {
+                                "Join"
+                            }
+                        }}
                     </Button>
                 </DialogFooter>
             </form>

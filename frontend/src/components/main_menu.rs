@@ -83,6 +83,17 @@ pub fn MainMenu() -> impl IntoView {
                 RoomDialogAction::Create { room_name, password, room_type } => {
                     ws::ws_create_room(room_name, password, false, room_type);
                 }
+                // Same behaviour as loading the URL (see `ConnectingPage`): create or join
+                // when the type is known, otherwise join only. The password is already hashed.
+                RoomDialogAction::Url(room_url) => match room_url.room_type {
+                    Some(room_type) => ws::ws_create_room(
+                        room_url.room_name,
+                        room_url.hashed_password,
+                        true,
+                        room_type,
+                    ),
+                    None => ws::ws_join_room(room_url.room_name, room_url.hashed_password, true),
+                },
             })
         />
 
