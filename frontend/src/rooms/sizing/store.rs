@@ -17,6 +17,7 @@
  */
 
 use leptos::prelude::*;
+use sizematters_shared::messages::sizing::VotingSystem;
 use std::collections::{HashMap, HashSet};
 
 #[derive(Clone, Debug, PartialEq)]
@@ -35,6 +36,8 @@ pub struct VoteStore {
     /// Whether results are currently shown for a room. Set directly by the
     /// VoteResults/NewVote messages rather than derived from vote counts.
     results_revealed: RwSignal<HashMap<String, bool>>,
+    /// Voting system per room. Rooms without an entry use the default.
+    voting_systems: RwSignal<HashMap<String, VotingSystem>>,
 }
 
 impl VoteStore {
@@ -43,6 +46,7 @@ impl VoteStore {
             votes: RwSignal::new(HashMap::new()),
             spectators: RwSignal::new(HashMap::new()),
             results_revealed: RwSignal::new(HashMap::new()),
+            voting_systems: RwSignal::new(HashMap::new()),
         }
     }
 
@@ -88,6 +92,9 @@ impl VoteStore {
         self.results_revealed.update(|revealed| {
             revealed.remove(room_name);
         });
+        self.voting_systems.update(|systems| {
+            systems.remove(room_name);
+        });
     }
 
     /// Remove vote data for every room. See `RoomStore::clear`.
@@ -95,6 +102,7 @@ impl VoteStore {
         self.votes.update(|votes| votes.clear());
         self.spectators.update(|spectators| spectators.clear());
         self.results_revealed.update(|revealed| revealed.clear());
+        self.voting_systems.update(|systems| systems.clear());
     }
 
     pub fn user_joined(&self, room_name: &str, user_id: &str) {
@@ -230,6 +238,18 @@ impl VoteStore {
         self.results_revealed.update(|revealed| {
             revealed.insert(room_name.to_string(), false);
         });
+    }
+
+    /// Set the room's voting system. Called when VoteStatus or VotingSystemChanged arrives.
+    pub fn set_voting_system(&self, room_name: &str, system: VotingSystem) {
+        self.voting_systems.update(|systems| {
+            systems.insert(room_name.to_string(), system);
+        });
+    }
+
+    pub fn voting_system(&self, room_name: &str) -> VotingSystem {
+        self.voting_systems
+            .with(|systems| systems.get(room_name).copied().unwrap_or_default())
     }
 
     pub fn is_revealed(&self, room_name: &str) -> bool {
