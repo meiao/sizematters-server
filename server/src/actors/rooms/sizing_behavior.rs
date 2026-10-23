@@ -18,15 +18,17 @@
 
 use crate::actors::rooms::room::{RoomBehavior, RoomState};
 use rand::RngExt;
-use sizematters_shared::messages::{
-    ClientResponseMessage, SizingRequestMessage, SizingResponseMessage,
+use sizematters_shared::messages::sizing::{
+    SizingRequestMessage, SizingResponseMessage, VotingSystem,
 };
+use sizematters_shared::messages::ClientResponseMessage;
 use std::collections::HashMap;
 use std::sync::Arc;
 
 pub(super) struct SizingBehavior {
     vote_map: HashMap<Arc<String>, String>,
     voting_over: bool,
+    voting_system: VotingSystem,
 }
 
 impl SizingBehavior {
@@ -34,6 +36,7 @@ impl SizingBehavior {
         SizingBehavior {
             vote_map: HashMap::new(),
             voting_over: false,
+            voting_system: VotingSystem::default(),
         }
     }
 }
@@ -65,6 +68,9 @@ impl RoomBehavior<SizingRequestMessage> for SizingBehavior {
             SizingRequestMessage::RevokeVotingRights { target_id } => {
                 self.revoke_voting_rights(user_id, target_id, room)
             }
+            SizingRequestMessage::ChangeVotingSystem { new_system } => {
+                self.change_voting_system(new_system, room)
+            }
         }
     }
 }
@@ -94,6 +100,16 @@ impl SizingBehavior {
             return;
         }
 
+        if !self.voting_system.values().contains(&size.as_str()) {
+            room.notify_user(
+                &user_id,
+                ClientResponseMessage::Error {
+                    msg: "Invalid vote value".to_string(),
+                },
+            );
+            return;
+        }
+
         let msg = Self::room_msg(
             room.room_name(),
             SizingResponseMessage::OwnVote { size: size.clone() },
@@ -117,6 +133,21 @@ impl SizingBehavior {
 
         let room_name = room.room_name();
         let msg = Self::room_msg(room_name.clone(), SizingResponseMessage::NewVote);
+        room.notify_users(msg);
+    }
+
+    fn change_voting_system(&mut self, new_system: VotingSystem, room: &RoomState) {
+        if self.voting_system == new_system {
+            return;
+        }
+        self.vote_map.clear();
+        self.voting_over = false;
+
+        self.voting_system = new_system;
+        let msg = Self::room_msg(
+            room.room_name(),
+            SizingResponseMessage::VotingSystemChanged { new_system },
+        );
         room.notify_users(msg);
     }
 
@@ -180,9 +211,14 @@ impl SizingBehavior {
             .map(|user_id| ((**user_id).clone(), self.vote_map.contains_key(user_id)))
             .collect();
         let spectators = room.spectators();
+        let voting_system = self.voting_system;
         Self::room_msg(
             room.room_name(),
-            SizingResponseMessage::VoteStatus { votes, spectators },
+            SizingResponseMessage::VoteStatus {
+                votes,
+                voting_system,
+                spectators,
+            },
         )
     }
 

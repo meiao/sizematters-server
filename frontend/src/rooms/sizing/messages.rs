@@ -19,7 +19,7 @@
 use super::VoteStore;
 use crate::rooms::HandlerCtx;
 use leptos::prelude::*;
-use sizematters_shared::messages::SizingResponseMessage;
+use sizematters_shared::messages::sizing::SizingResponseMessage;
 
 /// Handle the payload of a `RoomMessage` sent to a sizing room.
 pub fn handle_message(payload: &str, room_name: &str, vote_store: VoteStore, ctx: HandlerCtx) {
@@ -35,13 +35,24 @@ pub fn handle_message(payload: &str, room_name: &str, vote_store: VoteStore, ctx
             let own_id = ctx.user_store.own_user_id_untracked();
             vote_store.own_vote(room_name, &own_id, size);
         }
-        SizingResponseMessage::VoteStatus { votes, spectators } => {
+        SizingResponseMessage::VoteStatus {
+            votes,
+            voting_system,
+            spectators,
+        } => {
+            vote_store.set_voting_system(room_name, voting_system);
             vote_store.vote_status(room_name, &votes);
             vote_store.set_spectators(room_name, &spectators);
         }
         SizingResponseMessage::VoteResults { votes } => {
             vote_store.mark_as_voters(room_name, votes.keys().cloned());
             vote_store.vote_results(room_name, &votes);
+        }
+        // The server drops all votes when the system changes, without a NewVote.
+        SizingResponseMessage::VotingSystemChanged { new_system } => {
+            vote_store.set_voting_system(room_name, new_system);
+            ctx.room_store.clear_selected_user(room_name);
+            vote_store.new_vote(room_name);
         }
         SizingResponseMessage::NewVote => {
             ctx.room_store.clear_selected_user(room_name);

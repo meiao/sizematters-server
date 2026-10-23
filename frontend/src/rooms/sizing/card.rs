@@ -20,7 +20,7 @@ use super::VoteStore;
 use crate::rooms::common::{send_room_msg, PlayerCard};
 use crate::stores::UserStore;
 use leptos::prelude::*;
-use sizematters_shared::messages::SizingRequestMessage;
+use sizematters_shared::messages::sizing::SizingRequestMessage;
 
 /// A voter's card. Shows whether they voted, and flips over to show their vote once the
 /// results are revealed.

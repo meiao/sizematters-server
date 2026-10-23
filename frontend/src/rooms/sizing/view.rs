@@ -25,11 +25,9 @@ use crate::rooms::common::{send_room_msg, RoomShell, SpectatorList};
 use crate::stores::{RoomStore, UserStore};
 use icons::{Eye, RotateCcw, Shuffle};
 use leptos::prelude::*;
-use sizematters_shared::messages::SizingRequestMessage;
+use sizematters_shared::messages::sizing::{SizingRequestMessage, VotingSystem};
 use sizematters_shared::UserData;
-
-/// Fibonacci-like vote values used in planning poker.
-const NUMBERS: &[u64] = &[0, 1, 2, 3, 5, 8, 13, 21];
+use strum::IntoEnumIterator;
 
 #[component]
 pub fn SizingRoom(room_name: String) -> impl IntoView {
@@ -86,6 +84,9 @@ pub fn SizingRoom(room_name: String) -> impl IntoView {
         })
     });
 
+    let rn = room_name.clone();
+    let voting_system = Memo::new(move |_| vote_store.voting_system(&rn));
+
     let rn = StoredValue::new(room_name.clone());
     let room_msg = move |msg: SizingRequestMessage| send_room_msg(&rn.read_value(), &msg);
 
@@ -113,55 +114,92 @@ pub fn SizingRoom(room_name: String) -> impl IntoView {
                     </For>
                 </div>
             </CardContent>
-            <CardFooter class="flex-wrap justify-center gap-2 border-t pt-4" attr:role="group" attr:aria-label="Vote buttons">
-                {move || if own_is_spectator.get() {
-                    view! {
-                        <Button on:click=move |_| room_msg(SizingRequestMessage::RegisterToVote)>
-                            <Eye />
-                            "Register to vote"
-                        </Button>
-                    }.into_any()
-                } else {
-                    NUMBERS.iter().map(|&num| {
-                        let label = format!("Vote {}", num);
-                        let is_own_vote = move || own_vote_value.get() == Some(num.to_string());
+            <CardFooter class="items-center gap-4 border-t pt-4" attr:role="group" attr:aria-label="Vote buttons">
+                <div class="flex shrink-0 items-center gap-2 lg:flex-1">
+                    <label for="voting-system-select" class="text-sm whitespace-nowrap">"Voting system"</label>
+                    <select
+                        id="voting-system-select"
+                        class="text-foreground border-input flex h-9 min-w-0 rounded-md border bg-transparent px-3 py-1 text-base shadow-xs outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-2 md:text-sm"
+                        on:change=move |e| {
+                            let index: usize = event_target_value(&e).parse().unwrap_or(0);
+                            if let Some(new_system) = VotingSystem::iter().nth(index) {
+                                room_msg(SizingRequestMessage::ChangeVotingSystem { new_system });
+                            }
+                        }
+                    >
+                        {VotingSystem::iter()
+                            .enumerate()
+                            .map(|(index, system)| {
+                                view! {
+                                    <option
+                                        value=index.to_string()
+                                        selected=move || voting_system.get() == system
+                                    >
+                                        {system.display_name()}
+                                    </option>
+                                }
+                            })
+                            .collect_view()}
+                    </select>
+                </div>
+                <div class="flex min-w-0 flex-1 flex-wrap items-center justify-center gap-2 lg:flex-none">
+                    {move || if results_revealed.get() {
                         view! {
                             <Button
-                                variant=Signal::derive(move || {
-                                    if is_own_vote() {
-                                        ButtonVariant::Success
-                                    } else {
-                                        ButtonVariant::Outline
-                                    }
-                                })
-                                class="size-10 rounded-full text-base font-semibold sm:size-14 sm:text-xl"
-                                // Voting is over once results are shown; the server would only
-                                // answer VotingOver.
-                                attr:disabled=move || results_revealed.get()
-                                attr:aria-label=label
-                                attr:aria-pressed=move || is_own_vote().to_string()
-                                on:click=move |_| room_msg(SizingRequestMessage::Vote { size: num.to_string() })
+                                variant=ButtonVariant::Success
+                                on:click=move |_| room_msg(SizingRequestMessage::NewVote)
                             >
-                                {num}
+                                <RotateCcw />
+                                "New vote"
                             </Button>
-                        }
-                    }).collect_view().into_any()
-                }}
-                <Show when=move || results_revealed.get()>
-                    <div class="flex w-full justify-center gap-2 pt-2">
-                        <Button
-                            variant=ButtonVariant::Success
-                            on:click=move |_| room_msg(SizingRequestMessage::NewVote)
-                        >
-                            <RotateCcw />
-                            "New vote"
-                        </Button>
-                        <Button on:click=move |_| room_msg(SizingRequestMessage::Randomize)>
-                            <Shuffle />
-                            "Randomize"
-                        </Button>
-                    </div>
-                </Show>
+                            <Button on:click=move |_| room_msg(SizingRequestMessage::Randomize)>
+                                <Shuffle />
+                                "Randomize"
+                            </Button>
+                        }.into_any()
+                    } else if own_is_spectator.get() {
+                        view! {
+                            <Button on:click=move |_| room_msg(SizingRequestMessage::RegisterToVote)>
+                                <Eye />
+                                "Register to vote"
+                            </Button>
+                        }.into_any()
+                    } else {
+                        // Keyed by value so the buttons (and their click handlers) are rebuilt
+                        // when the voting system changes, rather than patched in place.
+                        view! {
+                            <For
+                                each=move || voting_system.get().values().to_vec()
+                                key=|value| *value
+                                let:value
+                            >
+                                {
+                                    let label = format!("Vote {}", value);
+                                    let is_own_vote = move || own_vote_value.get().as_deref() == Some(value);
+                                    view! {
+                                        <Button
+                                            variant=Signal::derive(move || {
+                                                if is_own_vote() {
+                                                    ButtonVariant::Success
+                                                } else {
+                                                    ButtonVariant::Outline
+                                                }
+                                            })
+                                            class="h-10 min-w-10 rounded-full px-3 text-base font-semibold sm:h-14 sm:min-w-14 sm:text-xl"
+                                            attr:aria-label=label
+                                            attr:aria-pressed=move || is_own_vote().to_string()
+                                            on:click=move |_| room_msg(SizingRequestMessage::Vote { size: value.to_string() })
+                                        >
+                                            {value}
+                                        </Button>
+                                    }
+                                }
+                            </For>
+                        }.into_any()
+                    }}
+                </div>
+                // On wide screens, balances the select on the left so the buttons stay centered.
+                <div class="hidden lg:block lg:flex-1"></div>
             </CardFooter>
         </RoomShell>
     }
