@@ -12,3 +12,6 @@ pub enum AvatarStyle {
     Squircles,
     Waves,
 }
+
+#[cfg(test)]
+mod avatar_test;

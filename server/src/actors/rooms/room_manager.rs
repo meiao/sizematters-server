@@ -248,3 +248,6 @@ impl RoomManagerActor {
         }
     }
 }
+
+#[cfg(test)]
+mod room_manager_test;

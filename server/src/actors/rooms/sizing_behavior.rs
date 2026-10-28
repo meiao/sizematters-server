@@ -249,3 +249,6 @@ impl SizingBehavior {
         }
     }
 }
+
+#[cfg(test)]
+mod sizing_behavior_test;

@@ -66,3 +66,6 @@ impl VotingSystem {
         }
     }
 }
+
+#[cfg(test)]
+mod sizing_test;

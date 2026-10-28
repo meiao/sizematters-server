@@ -344,3 +344,6 @@ fn compute_password(password: Arc<String>, password_is_hash: bool) -> Arc<String
         Arc::new(format!("{:x}", md5::compute(password.as_bytes())))
     }
 }
+
+#[cfg(test)]
+mod room_test;

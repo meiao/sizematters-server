@@ -29,3 +29,10 @@ uuid = { version = "1", features = ["v4"] }
 
 
 sizematters-shared = { path = "../shared", features = ["actix"] }
+
+[dev-dependencies]
+actix-codec = "0.5"
+actix-test = "0.1"
+awc = "3"
+futures-util = "0.3"
+strum = "0.27"

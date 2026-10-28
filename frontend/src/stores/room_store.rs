@@ -140,3 +140,6 @@ impl RoomStore {
         });
     }
 }
+
+#[cfg(test)]
+mod room_store_test;

@@ -122,3 +122,6 @@ pub fn RoomView(room_name: String, room_type: RoomType) -> impl IntoView {
         RoomType::Jyanken => view! { <JyankenRoom room_name=room_name /> }.into_any(),
     }
 }
+
+#[cfg(test)]
+mod rooms_test;

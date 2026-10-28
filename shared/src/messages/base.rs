@@ -80,3 +80,6 @@ pub enum ClientResponseMessage {
         msg: String,
     },
 }
+
+#[cfg(test)]
+mod base_test;

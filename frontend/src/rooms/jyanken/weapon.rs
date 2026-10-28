@@ -46,3 +46,6 @@ pub fn WeaponIcon(weapon: JyankenWeapon, #[prop(optional, into)] class: String) 
         </span>
     }
 }
+
+#[cfg(test)]
+mod weapon_test;

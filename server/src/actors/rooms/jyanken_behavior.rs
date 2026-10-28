@@ -240,3 +240,6 @@ impl JyankenBehavior {
         }
     }
 }
+
+#[cfg(test)]
+mod jyanken_behavior_test;

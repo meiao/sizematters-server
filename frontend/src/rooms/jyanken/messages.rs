@@ -55,3 +55,6 @@ pub fn handle_message(
         }
     }
 }
+
+#[cfg(test)]
+mod messages_test;

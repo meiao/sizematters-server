@@ -257,3 +257,6 @@ impl VoteStore {
             .with(|revealed| revealed.get(room_name).copied().unwrap_or(false))
     }
 }
+
+#[cfg(test)]
+mod store_test;

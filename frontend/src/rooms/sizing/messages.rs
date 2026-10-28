@@ -64,3 +64,6 @@ pub fn handle_message(payload: &str, room_name: &str, vote_store: VoteStore, ctx
         }
     }
 }
+
+#[cfg(test)]
+mod messages_test;

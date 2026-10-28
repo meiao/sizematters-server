@@ -268,3 +268,6 @@ impl Handler<ClientResponseMessage> for ClientActor {
         }
     }
 }
+
+#[cfg(test)]
+mod client_test;

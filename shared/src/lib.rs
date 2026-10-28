@@ -78,28 +78,4 @@ impl RoomType {
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn url_slug_round_trips_for_every_room_type() {
-        for room_type in RoomType::iter() {
-            assert_eq!(
-                RoomType::from_url_slug(room_type.url_slug()),
-                Some(room_type)
-            );
-        }
-    }
-
-    #[test]
-    fn from_url_slug_ignores_case() {
-        assert_eq!(RoomType::from_url_slug("Jyanken"), Some(RoomType::Jyanken));
-        assert_eq!(RoomType::from_url_slug("SIZING"), Some(RoomType::Sizing));
-    }
-
-    #[test]
-    fn from_url_slug_rejects_unknown_types() {
-        assert_eq!(RoomType::from_url_slug("chess"), None);
-        assert_eq!(RoomType::from_url_slug(""), None);
-    }
-}
+mod lib_test;

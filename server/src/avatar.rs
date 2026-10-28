@@ -58,3 +58,6 @@ fn get_style(style: &AvatarStyle) -> Style {
         AvatarStyle::Pixelbot => Style::from_str(dicebear_styles::PIXELBOT).unwrap(),
     }
 }
+
+#[cfg(test)]
+mod avatar_test;

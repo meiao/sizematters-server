@@ -134,3 +134,6 @@ impl JyankenStore {
         });
     }
 }
+
+#[cfg(test)]
+mod store_test;

@@ -22,3 +22,6 @@ mod room_manager;
 mod sizing_behavior;
 
 pub use room_manager::RoomManagerActor;
+
+#[cfg(test)]
+mod test_support;

@@ -61,3 +61,6 @@ pub enum JyankenWeapon {
     //Lizard,
     //Spock,
 }
+
+#[cfg(test)]
+mod jyanken_test;

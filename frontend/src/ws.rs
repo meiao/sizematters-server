@@ -450,3 +450,6 @@ pub fn ws_leave_room(room_name: String) {
 pub fn ws_room_msg(room_name: String, payload: String) {
     send_message(ClientRequestMessage::RoomMessage { room_name, payload })
 }
+
+#[cfg(test)]
+mod ws_test;

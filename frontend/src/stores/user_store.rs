@@ -76,3 +76,6 @@ impl UserStore {
         self.own_user_id.get_untracked()
     }
 }
+
+#[cfg(test)]
+mod user_store_test;

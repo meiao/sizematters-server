@@ -36,3 +36,6 @@ pub(super) fn create(
         .recipient(),
     }
 }
+
+#[cfg(test)]
+mod room_factory_test;
