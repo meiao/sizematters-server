@@ -26,6 +26,9 @@ regex = "1"
 serde = "1.0"
 serde_json = "1"
 uuid = { version = "1", features = ["v4"] }
-
+opentelemetry = { version = "0.33.1", default-features = false, features = ["metrics"] }
+opentelemetry_sdk = { version = "0.33.1", default-features = false, features = ["metrics"] }
+opentelemetry-otlp = { version = "0.33.1", features = ["tls-ring", "tls-roots", "metrics", "gzip-tonic", "tonic", "grpc-tonic", "logs", "internal-logs"] }
 
 sizematters-shared = { path = "../shared", features = ["actix"] }
+rustls = "0.23.46"

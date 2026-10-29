@@ -17,13 +17,15 @@
  */
 
 use crate::actors::messages::RoomMessages;
-use actix::{Actor, ActorContext, Context, Handler, Recipient};
+use actix::{Actor, ActorContext, AsyncContext, Context, Handler, Recipient};
+use opentelemetry::{global as otel, KeyValue};
 use serde::de::DeserializeOwned;
 use sizematters_shared::avatar::AvatarStyle;
 use sizematters_shared::messages::ClientResponseMessage;
 use sizematters_shared::{RoomType, UserData};
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
+use std::time::Duration;
 
 /// Logic that is specific to a type of room. `T` is the type of the room specific messages.
 ///
@@ -68,10 +70,23 @@ impl<T: 'static> Room<T> {
             },
         }
     }
+
+    fn telemetry_users(&self) {
+        let meter = otel::meter("sizematters");
+        let gauge = meter.u64_gauge("room.occupancy").build();
+        gauge.record(
+            self.state.user_map.len() as u64,
+            &[KeyValue::new("name", self.state.room_name())],
+        );
+    }
 }
 
 impl<T: 'static> Actor for Room<T> {
     type Context = Context<Self>;
+
+    fn started(&mut self, ctx: &mut Self::Context) {
+        ctx.run_interval(Duration::from_secs(30), |act, _| act.telemetry_users());
+    }
 }
 
 impl<T: DeserializeOwned + 'static> Handler<RoomMessages> for Room<T> {

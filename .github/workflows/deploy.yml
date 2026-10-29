@@ -30,7 +30,14 @@ jobs:
       - name: Resolve deploy variables
         run: |
           PORT="${{ github.event.inputs.port || '8081' }}"
+          case "$PORT" in
+            8080) SERVICE_NAME=sizematters ;;
+            8081) SERVICE_NAME=sizematters-beta ;;
+            8082) SERVICE_NAME=sizer ;;
+            *)    SERVICE_NAME="sizematters-$PORT" ;;
+          esac
           echo "PORT=$PORT" >> "$GITHUB_ENV"
+          echo "SERVICE_NAME=$SERVICE_NAME" >> "$GITHUB_ENV"
           echo "IMAGE_NAME=sizematters-server-$PORT" >> "$GITHUB_ENV"
           echo "CONTAINER_NAME=sizematters-server-$PORT" >> "$GITHUB_ENV"
 
@@ -63,11 +70,14 @@ jobs:
 
       - name: Load image and restart container
         uses: appleboy/ssh-action@7eaf76671a0d7eec5d98ee897acda4f968735a17 # v1.2.0
+        env:
+          OTEL_EXPORTER_OTLP_HEADERS: ${{ secrets.OTEL_EXPORTER_OTLP_HEADERS }}
         with:
           host: ${{ secrets.SSH_HOST }}
           username: ${{ secrets.SSH_USERNAME }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           port: ${{ secrets.SSH_PORT || 22 }}
+          envs: OTEL_EXPORTER_OTLP_HEADERS
           script: |
             set -e
             docker load < /tmp/${{ env.IMAGE_NAME }}.tar.gz
@@ -81,6 +91,8 @@ jobs:
               --name ${{ env.CONTAINER_NAME }} \
               -p ${{ env.PORT }}:8080 \
               -e RUST_LOG=actix_server=info,actix_web=info \
+              -e SERVICE_NAME=${{ env.SERVICE_NAME }} \
+              -e OTEL_EXPORTER_OTLP_HEADERS \
               --restart unless-stopped \
               ${{ env.IMAGE_NAME }}:latest
 
