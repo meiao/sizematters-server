@@ -22,9 +22,13 @@ pub mod avatar;
 use actix::{Actor, Addr};
 use actix_web::{middleware, web, App, Error, HttpRequest, HttpResponse, HttpServer};
 use actix_web_actors::ws;
-
 use actors::ClientActor;
 use actors::RoomManagerActor;
+use opentelemetry::global as otel;
+use opentelemetry_otlp::tonic_types::transport::ClientTlsConfig;
+use opentelemetry_otlp::{Protocol, WithExportConfig, WithTonicConfig};
+use opentelemetry_sdk::metrics::{SdkMeterProvider, Temporality};
+use opentelemetry_sdk::Resource;
 
 /// do websocket handshake and start `MyWebSocket` actor
 async fn ws_index(
@@ -42,6 +46,8 @@ async fn main() -> std::io::Result<()> {
     env_logger::init();
 
     let room_manager = RoomManagerActor::new().start();
+
+    initialize_o11y();
 
     HttpServer::new(move || {
         App::new()
@@ -61,4 +67,30 @@ async fn main() -> std::io::Result<()> {
     .bind("0.0.0.0:8080")?
     .run()
     .await
+}
+
+fn initialize_o11y() {
+    if std::env::var_os("OTEL_EXPORTER_OTLP_HEADERS").is_none() {
+        eprintln!("OTEL_EXPORTER_OTLP_HEADERS not set, telemetry disabled");
+        return;
+    }
+
+    let service_name = std::env::var("SERVICE_NAME").unwrap_or("sizematters".to_string());
+
+    rustls::crypto::aws_lc_rs::default_provider()
+        .install_default()
+        .unwrap();
+    let exporter = opentelemetry_otlp::MetricExporter::builder()
+        .with_tonic()
+        .with_endpoint("https://otlp.nr-data.net")
+        .with_tls_config(ClientTlsConfig::new().with_enabled_roots())
+        .with_temporality(Temporality::Delta)
+        .with_protocol(Protocol::Grpc)
+        .build()
+        .expect("Failed to build exporter");
+    let provider = SdkMeterProvider::builder()
+        .with_periodic_exporter(exporter)
+        .with_resource(Resource::builder().with_service_name(service_name).build())
+        .build();
+    otel::set_meter_provider(provider);
 }

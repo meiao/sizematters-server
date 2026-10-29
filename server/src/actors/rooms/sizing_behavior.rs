@@ -17,12 +17,14 @@
  */
 
 use crate::actors::rooms::room::{RoomBehavior, RoomState};
+use opentelemetry::global as otel;
+use opentelemetry::KeyValue;
 use rand::RngExt;
 use sizematters_shared::messages::sizing::{
     SizingRequestMessage, SizingResponseMessage, VotingSystem,
 };
 use sizematters_shared::messages::ClientResponseMessage;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 
 pub(super) struct SizingBehavior {
@@ -38,6 +40,14 @@ impl SizingBehavior {
             voting_over: false,
             voting_system: VotingSystem::default(),
         }
+    }
+
+    fn telemetry_hand(&self, room: &RoomState) {
+        let meter = otel::meter("sizematters");
+        let histogram = meter.u64_histogram("room.sizing.consensus").build();
+        let different_votes: HashSet<String> = self.vote_map.values().cloned().collect();
+        let consensus = if different_votes.len() == 1 { 1 } else { 0 };
+        histogram.record(consensus, &[KeyValue::new("name", room.room_name())]);
     }
 }
 
@@ -198,6 +208,7 @@ impl SizingBehavior {
         room.notify_users(self.vote_status(room));
         if self.all_voted(room) {
             self.voting_over = true;
+            self.telemetry_hand(room);
         }
         if self.voting_over {
             room.notify_users(self.vote_results(room));
