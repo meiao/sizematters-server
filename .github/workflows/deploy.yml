@@ -33,7 +33,6 @@ jobs:
           case "$PORT" in
             8080) SERVICE_NAME=sizematters ;;
             8081) SERVICE_NAME=sizematters-beta ;;
-            8082) SERVICE_NAME=sizer ;;
             *)    SERVICE_NAME="sizematters-$PORT" ;;
           esac
           echo "PORT=$PORT" >> "$GITHUB_ENV"

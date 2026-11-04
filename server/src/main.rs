@@ -75,7 +75,7 @@ fn initialize_o11y() {
         return;
     }
 
-    let service_name = std::env::var("SERVICE_NAME").unwrap_or("sizematters".to_string());
+    let service_name = std::env::var("SERVICE_NAME").unwrap_or("sizematters-dev".to_string());
 
     rustls::crypto::aws_lc_rs::default_provider()
         .install_default()
