@@ -162,9 +162,12 @@ impl SizingBehavior {
     }
 
     fn randomize(&self, room: &RoomState) {
-        let users: Vec<&Arc<String>> = room.user_ids().collect();
+        let users: Vec<&Arc<String>> = room
+            .user_ids()
+            .filter(|user_id| !room.is_spectator(user_id))
+            .collect();
         if users.is_empty() {
-            println!("RoomActor: User not found in room.");
+            println!("RoomActor: No active user found in room.");
             return;
         }
 
