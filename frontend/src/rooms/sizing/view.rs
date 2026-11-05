@@ -119,7 +119,7 @@ pub fn SizingRoom(room_name: String) -> impl IntoView {
                     <label for="voting-system-select" class="text-sm whitespace-nowrap">"Voting system"</label>
                     <select
                         id="voting-system-select"
-                        class="text-foreground border-input flex h-9 min-w-0 rounded-md border bg-transparent px-3 py-1 text-base shadow-xs outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-2 md:text-sm"
+                        class="text-foreground border-input flex h-9 min-w-0 rounded-md border bg-transparent py-1 pr-8 pl-3 text-base shadow-xs outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-2 md:text-sm"
                         on:change=move |e| {
                             let index: usize = event_target_value(&e).parse().unwrap_or(0);
                             if let Some(new_system) = VotingSystem::iter().nth(index) {
