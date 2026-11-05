@@ -293,8 +293,11 @@ fn restore_rooms() {
     }
 }
 
-/// Announce the selected user via speech synthesis.
+/// Announce the selected user via speech synthesis, unless the user muted it.
 fn speak_selected_user(user_store: &UserStore, selected_user_id: &str) {
+    if room_storage::randomizer_muted() {
+        return;
+    }
     let user_name = user_store
         .user_untracked(selected_user_id)
         .map(|u| u.name.clone())

@@ -21,11 +21,13 @@
 //! localStorage layout:
 //! - `rooms`: JSON array of room names, without duplicates.
 //! - `room.{roomName}`: JSON object with the data needed to recreate that room.
+//! - `randomizer_muted`: `"true"` when the spoken randomizer announcement is muted.
 
 use serde::{Deserialize, Serialize};
 use sizematters_shared::RoomType;
 
 const ROOMS_KEY: &str = "rooms";
+const RANDOMIZER_MUTED_KEY: &str = "randomizer_muted";
 
 /// Everything needed to recreate (or rejoin) a room, saved under `room.{roomName}`.
 #[derive(Serialize, Deserialize)]
@@ -121,4 +123,18 @@ pub fn saved_rooms() -> Vec<StoredRoom> {
         }
     }
     rooms
+}
+
+/// Whether the spoken randomizer announcement is muted. Defaults to `false`.
+pub fn randomizer_muted() -> bool {
+    local_storage()
+        .and_then(|storage| storage.get_item(RANDOMIZER_MUTED_KEY).ok().flatten())
+        .is_some_and(|value| value == "true")
+}
+
+/// Remember whether the spoken randomizer announcement is muted.
+pub fn set_randomizer_muted(muted: bool) {
+    if let Some(storage) = local_storage() {
+        let _ = storage.set_item(RANDOMIZER_MUTED_KEY, if muted { "true" } else { "false" });
+    }
 }
