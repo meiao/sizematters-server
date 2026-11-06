@@ -100,9 +100,9 @@ pub fn SettingsDialog(
                                 .collect_view()}
                         </div>
                     </div>
-                    <div class="flex items-center justify-between gap-4">
-                        <Label html_for="settings-sound">"Sound: announce who the randomizer picks"</Label>
+                    <div class="flex items-center gap-2">
                         <Switch id="settings-sound" checked=sound_on />
+                        <Label html_for="settings-sound" class="font-normal">"Sound: announce who the randomizer picks"</Label>
                     </div>
                 </DialogBody>
                 <DialogFooter>
