@@ -21,10 +21,9 @@ use super::VoteStore;
 use crate::collate::compare_names;
 use crate::components::ui::button::{Button, ButtonVariant};
 use crate::components::ui::card::{CardContent, CardFooter};
-use crate::room_storage;
 use crate::rooms::common::{send_room_msg, RoomShell, SpectatorList};
 use crate::stores::{RoomStore, UserStore};
-use icons::{Eye, RotateCcw, Shuffle, Volume2, VolumeX};
+use icons::{Eye, RotateCcw, Shuffle};
 use leptos::prelude::*;
 use sizematters_shared::messages::sizing::{SizingRequestMessage, VotingSystem};
 use sizematters_shared::UserData;
@@ -87,8 +86,6 @@ pub fn SizingRoom(room_name: String) -> impl IntoView {
 
     let rn = room_name.clone();
     let voting_system = Memo::new(move |_| vote_store.voting_system(&rn));
-
-    let muted = RwSignal::new(room_storage::randomizer_muted());
 
     let rn = StoredValue::new(room_name.clone());
     let room_msg = move |msg: SizingRequestMessage| send_room_msg(&rn.read_value(), &msg);
@@ -158,18 +155,6 @@ pub fn SizingRoom(room_name: String) -> impl IntoView {
                             <Button on:click=move |_| room_msg(SizingRequestMessage::Randomize)>
                                 <Shuffle />
                                 "Randomize"
-                            </Button>
-                            <Button
-                                variant=ButtonVariant::Outline
-                                attr:aria-label=move || if muted.get() { "Unmute randomizer" } else { "Mute randomizer" }
-                                attr:aria-pressed=move || muted.get().to_string()
-                                on:click=move |_| {
-                                    let new_value = !muted.get_untracked();
-                                    muted.set(new_value);
-                                    room_storage::set_randomizer_muted(new_value);
-                                }
-                            >
-                                {move || if muted.get() { view! { <VolumeX /> }.into_any() } else { view! { <Volume2 /> }.into_any() }}
                             </Button>
                         }.into_any()
                     } else if own_is_spectator.get() {

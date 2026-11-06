@@ -138,3 +138,9 @@ pub fn set_randomizer_muted(muted: bool) {
         let _ = storage.set_item(RANDOMIZER_MUTED_KEY, if muted { "true" } else { "false" });
     }
 }
+
+/// The avatar style saved by the last settings change, if any.
+pub fn saved_avatar_style() -> Option<sizematters_shared::avatar::AvatarStyle> {
+    let json = local_storage()?.get_item("avatar_style").ok().flatten()?;
+    serde_json::from_str(&json).ok()
+}

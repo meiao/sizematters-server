@@ -22,115 +22,97 @@ use crate::components::ui::dialog::{
 };
 use crate::components::ui::input::{Input, InputType};
 use crate::components::ui::label::Label;
+use crate::room_storage;
 use crate::room_url::{parse_room_url, RoomUrl};
 use leptos::prelude::*;
 use sizematters_shared::avatar::AvatarStyle;
 use sizematters_shared::RoomType;
 use strum::IntoEnumIterator;
 
-/// A simple modal dialog with a single text input.
-/// Pass `content` as a slice of paragraphs to display above the input.
-#[component]
-pub fn PromptDialog(
-    title: &'static str,
-    #[prop(default = &[])] content: &'static [&'static str],
-    show: RwSignal<bool>,
-    on_confirm: Callback<String>,
-) -> impl IntoView {
-    let input_value = RwSignal::new(String::new());
-    // Unique per dialog, since several PromptDialogs share a page.
-    let title_id = format!(
-        "prompt-dialog-{}",
-        title
-            .to_lowercase()
-            .replace(|c: char| !c.is_alphanumeric(), "-")
-    );
-    let input_id = StoredValue::new(format!("{title_id}-input"));
-    let title_id = StoredValue::new(title_id);
-
-    let on_submit = move |e: leptos::ev::SubmitEvent| {
-        e.prevent_default();
-        let val = input_value.get();
-        if !val.is_empty() {
-            on_confirm.run(val);
-        }
-        show.set(false);
-        input_value.set(String::new());
-    };
-
-    view! {
-        <Dialog open=show labelledby=title_id.get_value()>
-            <form class="contents" on:submit=on_submit>
-                <DialogHeader>
-                    <DialogTitle attr:id=title_id.get_value()>{title}</DialogTitle>
-                    {(!content.is_empty()).then(|| view! {
-                        <DialogDescription>
-                            {content.iter().map(|&line| view! { <p>{line}</p> }).collect_view()}
-                        </DialogDescription>
-                    })}
-                </DialogHeader>
-                <DialogBody>
-                    <Input
-                        id=input_id.get_value()
-                        bind_value=input_value
-                        attr:aria-labelledby=title_id.get_value()
-                    />
-                </DialogBody>
-                <DialogFooter>
-                    <Button variant=ButtonVariant::Outline attr:r#type="button" on:click=move |_| show.set(false)>
-                        "Cancel"
-                    </Button>
-                    <Button attr:r#type="submit">"Confirm"</Button>
-                </DialogFooter>
-            </form>
-        </Dialog>
-    }
+/// What the user chose in `SettingsDialog`.
+#[derive(Clone)]
+pub struct Settings {
+    pub name: String,
+    pub avatar_style: AvatarStyle,
+    pub sound_on: bool,
 }
 
-/// Modal dialog to pick one of the available `AvatarStyle`s.
+/// Modal dialog to edit the user's name, avatar style and whether the randomizer is announced
+/// out loud. The fields are reset to the current values every time it opens.
 #[component]
-pub fn AvatarStyleDialog(show: RwSignal<bool>, on_confirm: Callback<AvatarStyle>) -> impl IntoView {
-    let selected = RwSignal::new(AvatarStyle::default());
+pub fn SettingsDialog(
+    show: RwSignal<bool>,
+    /// The user's current name.
+    current_name: Signal<String>,
+    on_confirm: Callback<Settings>,
+) -> impl IntoView {
+    let name = RwSignal::new(String::new());
+    let avatar_style = RwSignal::new(AvatarStyle::default());
+    let sound_on = RwSignal::new(true);
+
+    Effect::new(move |_| {
+        if show.get() {
+            name.set(current_name.get_untracked());
+            avatar_style.set(room_storage::saved_avatar_style().unwrap_or_default());
+            sound_on.set(!room_storage::randomizer_muted());
+        }
+    });
 
     let on_submit = move |e: leptos::ev::SubmitEvent| {
         e.prevent_default();
-        on_confirm.run(selected.get());
+        on_confirm.run(Settings {
+            name: name.get(),
+            avatar_style: avatar_style.get(),
+            sound_on: sound_on.get(),
+        });
         show.set(false);
     };
 
     view! {
-        <Dialog open=show labelledby="avatar-dialog-title">
+        <Dialog open=show labelledby="settings-dialog-title">
             <form class="contents" on:submit=on_submit>
                 <DialogHeader>
-                    <DialogTitle attr:id="avatar-dialog-title">"Profile picture"</DialogTitle>
-                    <DialogDescription>
-                        <p>"Pick the style of your profile picture."</p>
-                    </DialogDescription>
+                    <DialogTitle attr:id="settings-dialog-title">"Settings"</DialogTitle>
                 </DialogHeader>
                 <DialogBody>
-                    <div class="grid grid-cols-2 gap-2" role="radiogroup" aria-label="Avatar style">
-                        {AvatarStyle::iter()
-                            .map(|style| {
-                                view! {
-                                    <Label class="font-normal">
-                                        <input
-                                            r#type="radio"
-                                            name="avatar-style"
-                                            checked=move || selected.get() == style
-                                            on:change=move |_| selected.set(style)
-                                        />
-                                        {format!("{style:?}")}
-                                    </Label>
-                                }
-                            })
-                            .collect_view()}
+                    <div class="flex flex-col gap-2">
+                        <Label html_for="settings-name">"Name"</Label>
+                        <Input id="settings-name" bind_value=name />
                     </div>
+                    <div class="flex flex-col gap-2">
+                        <span class="text-sm font-medium" id="settings-avatar-label">"Profile picture"</span>
+                        <div class="grid grid-cols-2 gap-2" role="radiogroup" attr:aria-labelledby="settings-avatar-label">
+                            {AvatarStyle::iter()
+                                .map(|style| {
+                                    view! {
+                                        <Label class="font-normal">
+                                            <input
+                                                r#type="radio"
+                                                name="avatar-style"
+                                                prop:checked=move || avatar_style.get() == style
+                                                on:change=move |_| avatar_style.set(style)
+                                            />
+                                            {format!("{style:?}")}
+                                        </Label>
+                                    }
+                                })
+                                .collect_view()}
+                        </div>
+                    </div>
+                    <Label class="font-normal">
+                        <input
+                            r#type="checkbox"
+                            prop:checked=move || sound_on.get()
+                            on:change=move |e| sound_on.set(event_target_checked(&e))
+                        />
+                        "Sound: announce who the randomizer picks"
+                    </Label>
                 </DialogBody>
                 <DialogFooter>
                     <Button variant=ButtonVariant::Outline attr:r#type="button" on:click=move |_| show.set(false)>
                         "Cancel"
                     </Button>
-                    <Button attr:r#type="submit">"Confirm"</Button>
+                    <Button attr:r#type="submit">"Save"</Button>
                 </DialogFooter>
             </form>
         </Dialog>
