@@ -22,6 +22,7 @@ use crate::components::ui::dialog::{
 };
 use crate::components::ui::input::{Input, InputType};
 use crate::components::ui::label::Label;
+use crate::components::ui::switch::Switch;
 use crate::room_storage;
 use crate::room_url::{parse_room_url, RoomUrl};
 use leptos::prelude::*;
@@ -99,14 +100,10 @@ pub fn SettingsDialog(
                                 .collect_view()}
                         </div>
                     </div>
-                    <Label class="font-normal">
-                        <input
-                            r#type="checkbox"
-                            prop:checked=move || sound_on.get()
-                            on:change=move |e| sound_on.set(event_target_checked(&e))
-                        />
-                        "Sound: announce who the randomizer picks"
-                    </Label>
+                    <div class="flex items-center justify-between gap-4">
+                        <Label html_for="settings-sound">"Sound: announce who the randomizer picks"</Label>
+                        <Switch id="settings-sound" checked=sound_on />
+                    </div>
                 </DialogBody>
                 <DialogFooter>
                     <Button variant=ButtonVariant::Outline attr:r#type="button" on:click=move |_| show.set(false)>
