@@ -120,10 +120,9 @@ pub fn SizingRoom(room_name: String) -> impl IntoView {
             <CardFooter class="items-center gap-4 border-t pt-4" attr:role="group" attr:aria-label="Vote buttons">
                 <div class="flex shrink-0 items-center gap-2 lg:flex-1">
                     <label for="voting-system-select" class="text-sm whitespace-nowrap">"Voting system"</label>
-                    <div class="relative flex min-w-0 after:pointer-events-none after:absolute after:top-1/2 after:right-3 after:size-2 after:-translate-y-[70%] after:rotate-45 after:border-r-2 after:border-b-2 after:border-current after:content-['']">
                     <select
                         id="voting-system-select"
-                        class="text-foreground border-input flex h-9 min-w-0 appearance-none rounded-md border bg-transparent py-1 pr-8 pl-3 text-base shadow-xs outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-2 md:text-sm"
+                        class="text-foreground border-input flex h-9 min-w-0 rounded-md border bg-transparent px-3 py-1 text-base shadow-xs outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-2 md:text-sm"
                         on:change=move |e| {
                             let index: usize = event_target_value(&e).parse().unwrap_or(0);
                             if let Some(new_system) = VotingSystem::iter().nth(index) {
@@ -145,7 +144,6 @@ pub fn SizingRoom(room_name: String) -> impl IntoView {
                             })
                             .collect_view()}
                     </select>
-                    </div>
                 </div>
                 <div class="flex min-w-0 flex-1 flex-wrap items-center justify-center gap-2 lg:flex-none">
                     {move || if results_revealed.get() {
