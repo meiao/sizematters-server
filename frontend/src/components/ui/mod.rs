@@ -13,3 +13,4 @@ pub mod dialog;
 pub mod empty;
 pub mod input;
 pub mod label;
+pub mod switch;

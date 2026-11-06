@@ -16,16 +16,16 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-use crate::components::dialogs::{AvatarStyleDialog, PromptDialog, RoomDialog, RoomDialogAction};
+use crate::components::dialogs::{RoomDialog, RoomDialogAction, Settings, SettingsDialog};
 use crate::components::ui::avatar::{Avatar, AvatarFallback, AvatarImage, AvatarSize};
 use crate::components::ui::button::{Button, ButtonSize, ButtonVariant};
 use crate::components::ui::card::{Card, CardAction, CardHeader, CardSize, CardTitle};
+use crate::room_storage;
 use crate::rooms::RoomStores;
 use crate::stores::{RoomStore, UserStore};
 use crate::ws;
-use icons::{Plus, UserPen};
+use icons::{Plus, Settings as SettingsIcon};
 use leptos::prelude::*;
-use sizematters_shared::avatar::AvatarStyle;
 
 #[component]
 pub fn MainMenu() -> impl IntoView {
@@ -33,8 +33,7 @@ pub fn MainMenu() -> impl IntoView {
     let room_store = expect_context::<RoomStore>();
     let rooms_stores = expect_context::<RoomStores>();
 
-    let show_name_dialog = RwSignal::new(false);
-    let show_avatar_dialog = RwSignal::new(false);
+    let show_settings_dialog = RwSignal::new(false);
     let show_room_dialog = RwSignal::new(false);
 
     let name = Memo::new(move |_| {
@@ -61,17 +60,15 @@ pub fn MainMenu() -> impl IntoView {
     ws::ws_register();
 
     view! {
-        <PromptDialog
-            title="What's your name?"
-            show=show_name_dialog
-            on_confirm=Callback::new(move |name: String| {
-                ws::ws_set_name(name);
-            })
-        />
-        <AvatarStyleDialog
-            show=show_avatar_dialog
-            on_confirm=Callback::new(|style: AvatarStyle| {
-                ws::ws_set_avatar_style(style);
+        <SettingsDialog
+            show=show_settings_dialog
+            current_name=Signal::from(name)
+            on_confirm=Callback::new(move |settings: Settings| {
+                if !settings.name.is_empty() && settings.name != name.get_untracked() {
+                    ws::ws_set_name(settings.name);
+                }
+                ws::ws_set_avatar_style(settings.avatar_style);
+                room_storage::set_randomizer_muted(!settings.sound_on);
             })
         />
         <RoomDialog
@@ -98,37 +95,28 @@ pub fn MainMenu() -> impl IntoView {
         />
 
         <Card size=CardSize::Sm class="flex-row items-center gap-1 px-2">
+            <Avatar size=AvatarSize::Lg class="size-11 shrink-0">
+                {move || {
+                    let url = img_url.get();
+                    (!url.is_empty()).then(|| view! { <AvatarImage attr:src=url attr:alt="" /> })
+                }}
+                {move || {
+                    img_url.get().is_empty().then(|| view! {
+                        <AvatarFallback class="bg-success text-success-foreground text-lg">
+                            {move || name.get().chars().next().map(String::from).unwrap_or_default()}
+                        </AvatarFallback>
+                    })
+                }}
+            </Avatar>
+            <span class="min-w-0 flex-1 truncate px-2 text-base font-medium">{move || name.get()}</span>
             <Button
                 variant=ButtonVariant::Ghost
                 size=ButtonSize::Icon
-                class="size-12 rounded-full p-0"
-                attr:aria-label="Change profile picture"
-                attr:title="Change profile picture"
-                on:click=move |_| show_avatar_dialog.set(true)
+                attr:aria-label="Settings"
+                attr:title="Settings"
+                on:click=move |_| show_settings_dialog.set(true)
             >
-                <Avatar size=AvatarSize::Lg class="size-11">
-                    {move || {
-                        let url = img_url.get();
-                        (!url.is_empty()).then(|| view! { <AvatarImage attr:src=url attr:alt="" /> })
-                    }}
-                    {move || {
-                        img_url.get().is_empty().then(|| view! {
-                            <AvatarFallback class="bg-success text-success-foreground text-lg">
-                                {move || name.get().chars().next().map(String::from).unwrap_or_default()}
-                            </AvatarFallback>
-                        })
-                    }}
-                </Avatar>
-            </Button>
-            <Button
-                variant=ButtonVariant::Ghost
-                class="min-w-0 flex-1 justify-between text-base"
-                attr:aria-label="Change your name"
-                attr:title="Change your name"
-                on:click=move |_| show_name_dialog.set(true)
-            >
-                <span class="truncate">{move || name.get()}</span>
-                <UserPen class="text-muted-foreground" />
+                <SettingsIcon class="text-muted-foreground" />
             </Button>
         </Card>
 
